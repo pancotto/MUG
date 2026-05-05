@@ -1,5 +1,7 @@
 from pathlib import Path
 import io
+import os
+import sys
 import tempfile
 from datetime import datetime
 
@@ -65,6 +67,84 @@ BOTTOM_MARGIN_MM = 5
 
 A4_LANDSCAPE_WIDTH_MM = 297
 A4_LANDSCAPE_HEIGHT_MM = 210
+
+
+EMBEDDED_BROWSER_RELATIVE_CANDIDATES = [
+    Path("browser") / "chrome" / "chrome.exe",
+    Path("browser") / "chrome.exe",
+    Path("browser") / "chromium.exe",
+    Path("browser") / "chrome-win64" / "chrome.exe",
+    Path("browser") / "chrome-win" / "chrome.exe",
+    Path("chromium") / "chrome.exe",
+    Path("chromium") / "chromium.exe",
+    Path("chrome-win64") / "chrome.exe",
+]
+
+
+def get_runtime_base_dirs() -> list[Path]:
+    """
+    Retorna diretórios-base possíveis em execução normal e em app empacotado.
+
+    Em build PyInstaller --onedir, os dados adicionados via --add-data normalmente
+    ficam dentro de sys._MEIPASS, que aponta para a pasta _internal.
+    O executável fica um nível acima, em dist/MUG.
+    """
+    base_dirs: list[Path] = []
+
+    if getattr(sys, "frozen", False):
+        executable_dir = Path(sys.executable).resolve().parent
+        base_dirs.append(executable_dir)
+
+        pyinstaller_internal_dir = Path(getattr(sys, "_MEIPASS", executable_dir)).resolve()
+        base_dirs.append(pyinstaller_internal_dir)
+    else:
+        # core/pdf_exporter.py -> raiz do projeto MUG
+        project_root = Path(__file__).resolve().parents[1]
+        base_dirs.append(project_root)
+
+    # Remove duplicados preservando a ordem.
+    unique_dirs: list[Path] = []
+    for base_dir in base_dirs:
+        if base_dir not in unique_dirs:
+            unique_dirs.append(base_dir)
+
+    return unique_dirs
+
+
+def find_embedded_browser_executable() -> Path | None:
+    """
+    Procura um Chrome/Chromium portátil empacotado junto com a aplicação.
+
+    Caminhos esperados, por exemplo:
+    - MUG/browser/chrome.exe
+    - MUG/_internal/browser/chrome.exe
+    - MUG/_internal/browser/chrome-win64/chrome.exe
+    """
+    for base_dir in get_runtime_base_dirs():
+        for relative_path in EMBEDDED_BROWSER_RELATIVE_CANDIDATES:
+            browser_path = base_dir / relative_path
+            if browser_path.exists() and browser_path.is_file():
+                return browser_path
+
+    return None
+
+
+def configure_kaleido_browser_path() -> Path | None:
+    """
+    Configura o navegador usado pelo Kaleido/Choreographer.
+
+    Kaleido v1 não inclui mais Chrome internamente. Por isso, quando existir
+    um navegador portátil empacotado com o MUG, definimos BROWSER_PATH para
+    evitar dependência do Chrome instalado na máquina do cliente.
+    """
+    embedded_browser = find_embedded_browser_executable()
+
+    if embedded_browser is not None:
+        os.environ["BROWSER_PATH"] = str(embedded_browser)
+        return embedded_browser
+
+    return None
+
 
 
 def build_tick_values_high_density(dataframe: pd.DataFrame, x_min=None, x_max=None):
@@ -338,9 +418,28 @@ def build_pdf_figures(processed, zoom_mode: bool = False, selected_graphs: list[
 
 
 def save_figure_as_jpeg(fig, output_path: Path) -> Path:
-    image_stream = io.BytesIO(
-        to_image(fig, format="png", width=1250, height=884, scale=1.35)
-    )
+    embedded_browser = configure_kaleido_browser_path()
+
+    try:
+        image_stream = io.BytesIO(
+            to_image(fig, format="png", width=1250, height=884, scale=1.35)
+        )
+    except Exception as exc:
+        browser_info = (
+            f"Navegador portátil localizado em: {embedded_browser}"
+            if embedded_browser is not None
+            else "Nenhum navegador portátil foi localizado junto com o MUG."
+        )
+
+        raise RuntimeError(
+            "Falha ao renderizar o gráfico para exportação em PDF. "
+            "O MUG utiliza Plotly/Kaleido para converter os gráficos em imagens. "
+            f"{browser_info} "
+            "Se esta versão ainda não estiver com Chromium portátil empacotado, "
+            "será necessário usar uma instalação funcional do Google Chrome/Chromium "
+            "na máquina do cliente."
+        ) from exc
+
     image_stream.seek(0)
 
     image = Image.open(image_stream)
