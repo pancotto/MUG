@@ -7,7 +7,7 @@ if exist dist rmdir /s /q dist
 del /q *.spec 2>nul
 
 echo Gerando executavel MUG...
-pyinstaller --clean app.py --name MUG --onedir --noconsole --icon "assets\mug.ico" --add-data "assets;assets" --add-data "browser;browser"
+pyinstaller --clean app.py --name MUG --onedir --noconsole --icon "assets\mug.ico" --add-data "assets;assets" --add-data "browser;browser" --add-data "VERSION;."
 
 echo Build concluido.
 pause

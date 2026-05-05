@@ -1,42 +1,76 @@
+# =========================
 # Python
+# =========================
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 
-# Virtual environment
+# =========================
+# Virtual environments
+# =========================
 .venv/
 venv/
 env/
 
+# =========================
 # VS Code
+# =========================
 .vscode/
 
+# =========================
 # PyInstaller
+# =========================
 build/
 dist/
 *.spec
 
+# =========================
+# Installer / Executables
+# =========================
+installer/
+*.exe
+
+# =========================
+# Embedded browser (Chromium)
+# =========================
+browser/
+
+# =========================
 # Logs
+# =========================
 *.log
 
-# OS
+# =========================
+# OS files
+# =========================
 .DS_Store
 Thumbs.db
 
+# =========================
 # Temporary files
+# =========================
 *.tmp
 *.bak
 
-# Excel temporary files
+# =========================
+# Office temporary files
+# =========================
 ~$*.xlsx
 ~$*.xlsm
+~$*.xls
 ~$*.docx
+~$*.doc
+~$*.pptx
 
-# Python cache/testing
+# =========================
+# Python cache / tooling
+# =========================
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# Local environment
+# =========================
+# Environment files
+# =========================
 .env

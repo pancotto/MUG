@@ -1,10 +1,11 @@
 from pathlib import Path
+import sys
 import tempfile
 
 import pandas as pd
 import plotly.graph_objects as go
 
-from PySide6.QtCore import QObject, QUrl, Signal, Slot, QThread
+from PySide6.QtCore import QObject, QUrl, Signal, Slot, QThread, Qt
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -36,6 +37,52 @@ from core.graph_builder import (
 )
 from core.models import ProcessedData
 from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
+
+
+APP_VERSION_FALLBACK = "1.1.1"
+
+
+def get_app_version() -> str:
+    """
+    Retorna a versão da aplicação no padrão SemVer.
+
+    Em desenvolvimento, lê o arquivo VERSION na raiz do projeto.
+    Em build PyInstaller --onedir, tenta ler VERSION ao lado do executável
+    ou dentro da pasta _internal, quando incluído via --add-data.
+    """
+    candidates: list[Path] = []
+
+    if getattr(sys, "frozen", False):
+        executable_dir = Path(sys.executable).resolve().parent
+        internal_dir = Path(getattr(sys, "_MEIPASS", executable_dir)).resolve()
+        candidates.extend([
+            executable_dir / "VERSION",
+            internal_dir / "VERSION",
+        ])
+    else:
+        candidates.append(Path(__file__).resolve().parents[1] / "VERSION")
+
+    for version_file in candidates:
+        try:
+            if version_file.exists():
+                version = version_file.read_text(encoding="utf-8").strip()
+                if version:
+                    return version
+        except Exception:
+            pass
+
+    return APP_VERSION_FALLBACK
+
+
+DEFAULT_PDF_GRAPHS = {
+    "Tensão",
+    "Corrente",
+    "Potência Ativa",
+    "Potência Aparente",
+    "Fator de Potência",
+    "DHT Tensão",
+    "DHT Corrente",
+}
 
 
 FIXED_Y_SUBDIVISIONS = 20
@@ -319,13 +366,7 @@ class PdfExportTab(QWidget):
         super().__init__()
         self.graph_page = graph_page
         self.checkboxes: dict[str, QCheckBox] = {}
-        self.default_unchecked_graphs = {
-            "Deseq. Tensão",
-            "Deseq. Corrente",
-            "Tensão x Corrente",
-            "kW x kVA",
-            "Consumo",
-        }
+        self.default_pdf_graphs = DEFAULT_PDF_GRAPHS
         self._pdf_thread: QThread | None = None
         self._pdf_worker: PdfExportWorker | None = None
         self._build_ui()
@@ -409,7 +450,46 @@ class PdfExportTab(QWidget):
         self.progress_bar.setFormat("Gerando PDF... aguarde")
         self.progress_bar.setVisible(False)
 
+        self.select_default_button = QPushButton("Selecionar padrão")
+        self.select_default_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2d7d46;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 18px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #25673a;
+            }
+            QPushButton:disabled {
+                background-color: #1f5131;
+                color: #d0d0d0;
+            }
+        """)
+        self.select_default_button.clicked.connect(self.select_default)
+
         self.select_all_button = QPushButton("Selecionar todos")
+        self.select_all_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2d7d46;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 18px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #25673a;
+            }
+            QPushButton:disabled {
+                background-color: #1f5131;
+                color: #d0d0d0;
+            }
+        """)
         self.select_all_button.clicked.connect(self.select_all)
 
         self.clear_all_button = QPushButton("Limpar seleção")
@@ -434,9 +514,28 @@ class PdfExportTab(QWidget):
         self.clear_all_button.clicked.connect(self.clear_all)
 
         self.export_button = QPushButton("Gerar PDF")
+        self.export_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1f5fbf;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 18px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #194f9e;
+            }
+            QPushButton:disabled {
+                background-color: #173f7d;
+                color: #d0d0d0;
+            }
+        """)
         self.export_button.clicked.connect(self.export_pdf)
 
         buttons_layout = QVBoxLayout()
+        buttons_layout.addWidget(self.select_default_button)
         buttons_layout.addWidget(self.select_all_button)
         buttons_layout.addWidget(self.clear_all_button)
         buttons_layout.addWidget(self.export_button)
@@ -450,7 +549,7 @@ class PdfExportTab(QWidget):
 
         for graph_name in GRAPH_EXPORT_ORDER:
             checkbox = QCheckBox(graph_name)
-            checkbox.setChecked(graph_name not in self.default_unchecked_graphs)
+            checkbox.setChecked(graph_name in self.default_pdf_graphs)
             self.checkboxes[graph_name] = checkbox
             checklist_layout.addWidget(checkbox)
 
@@ -470,6 +569,7 @@ class PdfExportTab(QWidget):
 
     def set_exporting_state(self, exporting: bool):
         self.export_button.setDisabled(exporting)
+        self.select_default_button.setDisabled(exporting)
         self.select_all_button.setDisabled(exporting)
         self.clear_all_button.setDisabled(exporting)
 
@@ -485,6 +585,10 @@ class PdfExportTab(QWidget):
         else:
             self.export_button.setText("Gerar PDF")
             self.status_label.setText("")
+
+    def select_default(self):
+        for graph_name, checkbox in self.checkboxes.items():
+            checkbox.setChecked(graph_name in self.default_pdf_graphs)
 
     def select_all(self):
         for checkbox in self.checkboxes.values():
@@ -648,6 +752,16 @@ class GraphPage(QWidget):
             QTabBar::tab:hover {
                 background: #333333;
             }
+            QTabBar::tab:last {
+                background: #1f5131;
+                color: #ffffff;
+                font-weight: bold;
+            }
+            QTabBar::tab:last:selected {
+                background: #2d7d46;
+                color: #ffffff;
+                font-weight: bold;
+            }
         """)
 
         root_layout = QVBoxLayout()
@@ -676,10 +790,35 @@ class GraphPage(QWidget):
             self.webviews[tab_name] = webview
 
         self.pdf_export_tab = PdfExportTab(self)
-        self.tabs.addTab(self.pdf_export_tab, "Exportar PDF")
+        self.export_pdf_tab_index = self.tabs.addTab(self.pdf_export_tab, "Exportar PDF")
+        self._highlight_pdf_export_tab()
+        self._add_version_label()
 
         root_layout.addWidget(self.tabs)
         self.setLayout(root_layout)
+
+    def _highlight_pdf_export_tab(self):
+        """Destaca a aba de exportação, mantendo a navegação principal limpa."""
+        tab_bar = self.tabs.tabBar()
+        tab_bar.setTabToolTip(
+            self.export_pdf_tab_index,
+            "Exportar os gráficos selecionados em PDF A4 horizontal"
+        )
+
+    def _add_version_label(self):
+        """Exibe a versão no canto superior direito da área de abas."""
+        version_label = QLabel(f"v{get_app_version()}")
+        version_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        version_label.setStyleSheet("""
+            QLabel {
+                color: #f1f1f1;
+                background-color: #000000;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 0 8px;
+            }
+        """)
+        self.tabs.setCornerWidget(version_label, Qt.Corner.TopRightCorner)
 
     def _build_html_with_zoom_sync(self, fig: go.Figure, source_name: str):
         html = fig.to_html(full_html=True, include_plotlyjs=True, div_id="plot")
