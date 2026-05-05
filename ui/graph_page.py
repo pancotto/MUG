@@ -1,0 +1,894 @@
+from pathlib import Path
+import tempfile
+
+import pandas as pd
+import plotly.graph_objects as go
+
+from PySide6.QtCore import QObject, QUrl, Signal, Slot, QThread
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QTabWidget,
+    QMessageBox,
+    QLabel,
+    QPushButton,
+    QCheckBox,
+    QScrollArea,
+    QFileDialog,
+    QProgressBar,
+)
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineWidgets import QWebEngineView
+
+from core.graph_builder import (
+    create_tension_graph,
+    create_current_graph,
+    create_active_power_graph,
+    create_consumption_graph,
+    create_apparent_power_graph,
+    create_pf_graph,
+    create_tension_imbalance_graph,
+    create_current_imbalance_graph,
+    create_dht_voltage_graph,
+    create_dht_current_graph,
+    create_combined_vxi_graph,
+    create_combined_kwxkva_graph,
+)
+from core.models import ProcessedData
+from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
+
+
+FIXED_Y_SUBDIVISIONS = 20
+
+FIXED_Y_GRAPHS = [
+    "Tensão",
+    "Corrente",
+    "Potência Ativa",
+    "Potência Aparente",
+    "Deseq. Tensão",
+    "Deseq. Corrente",
+    "Consumo",
+    "DHT Tensão",
+    "DHT Corrente",
+    "Tensão x Corrente",
+    "kW x kVA",
+]
+
+
+def build_tick_values_high_density(dataframe: pd.DataFrame, x_min=None, x_max=None):
+    if dataframe is None or dataframe.empty or "Datetime" not in dataframe.columns:
+        return None, None, None, None
+
+    df = dataframe.copy()
+    df["Datetime"] = pd.to_datetime(df["Datetime"])
+
+    x_min = df["Datetime"].min() if x_min is None else pd.to_datetime(x_min)
+    x_max = df["Datetime"].max() if x_max is None else pd.to_datetime(x_max)
+
+    df_filtered = df[(df["Datetime"] >= x_min) & (df["Datetime"] <= x_max)].copy()
+
+    if df_filtered.empty:
+        return None, None, None, None
+
+    datetimes = list(df_filtered["Datetime"].drop_duplicates().sort_values())
+
+    if len(datetimes) < 2:
+        tickvals = datetimes
+        ticktext = [dt.strftime("%d/%m - %H:%M:%S") for dt in datetimes]
+        return tickvals, ticktext, x_min, x_max
+
+    target_ticks = 50
+    step = max(1, len(datetimes) // target_ticks)
+
+    tickvals = datetimes[::step]
+
+    if tickvals[-1] != datetimes[-1]:
+        if len(tickvals) >= 2:
+            last_gap = (datetimes[-1] - tickvals[-1]).total_seconds()
+            ref_gap = (tickvals[-1] - tickvals[-2]).total_seconds()
+
+            if ref_gap <= 0:
+                ref_gap = last_gap
+
+            if last_gap >= ref_gap * 0.6:
+                tickvals.append(datetimes[-1])
+        else:
+            tickvals.append(datetimes[-1])
+
+    ticktext = [dt.strftime("%d/%m - %H:%M:%S") for dt in tickvals]
+    return tickvals, ticktext, x_min, x_max
+
+
+def apply_default_x_density(fig: go.Figure, dataframe: pd.DataFrame, x_min=None, x_max=None):
+    tickvals, ticktext, x_min, x_max = build_tick_values_high_density(dataframe, x_min, x_max)
+
+    if tickvals and ticktext:
+        fig.update_xaxes(
+            range=[x_min, x_max],
+            tickmode="array",
+            tickvals=tickvals,
+            ticktext=ticktext,
+            tickangle=270,
+        )
+
+    return fig
+
+
+def apply_fixed_y_subdivisions(fig: go.Figure):
+    """
+    Ajusta todos os eixos Y para quantidade fixa de subdivisões.
+    Funciona também para gráficos com eixo duplo: yaxis, yaxis2, etc.
+    """
+    try:
+        axis_values = {}
+
+        for trace in fig.data:
+            y_values = getattr(trace, "y", None)
+            if y_values is None:
+                continue
+
+            values = pd.to_numeric(pd.Series(y_values), errors="coerce").dropna()
+            if values.empty:
+                continue
+
+            axis_ref = getattr(trace, "yaxis", None) or "y"
+            layout_axis = "yaxis" if axis_ref == "y" else f"yaxis{axis_ref.replace('y', '')}"
+
+            axis_values.setdefault(layout_axis, []).extend(values.tolist())
+
+        for layout_axis, values in axis_values.items():
+            if layout_axis not in fig.layout:
+                continue
+
+            axis = fig.layout[layout_axis]
+
+            if axis.range is not None:
+                y_min = axis.range[0]
+                y_max = axis.range[1]
+            else:
+                if not values:
+                    continue
+
+                y_min = min(values)
+                y_max = max(values)
+
+                if y_max <= y_min:
+                    continue
+
+                padding = (y_max - y_min) * 0.10
+
+                final_y_min = y_min - padding
+                final_y_max = y_max + padding
+
+                y_min = max(0, final_y_min)
+                y_max = final_y_max
+
+                axis.range = [y_min, y_max]
+                axis.autorange = False
+
+            y_range = y_max - y_min
+            if y_range <= 0:
+                continue
+
+            dtick = y_range / FIXED_Y_SUBDIVISIONS
+
+            axis.tickmode = "linear"
+            axis.tick0 = y_min
+            axis.dtick = dtick
+
+    except Exception:
+        pass
+
+    return fig
+
+
+def apply_zoom_y_autorange(fig: go.Figure):
+    """
+    No modo zoom, ajusta o eixo Y somente com base nos dados medidos,
+    ignorando linhas horizontais de limite, nominal, adequada, crítica etc.
+    O resultado é travado na quantidade fixa de subdivisões.
+    """
+
+    def is_limit_or_reference_trace(trace) -> bool:
+        name = str(getattr(trace, "name", "") or "").lower()
+
+        reference_keywords = [
+            "nominal",
+            "limite",
+            "adequada",
+            "precária",
+            "precaria",
+            "crítica",
+            "critica",
+            "faixa",
+        ]
+
+        if any(keyword in name for keyword in reference_keywords):
+            return True
+
+        y_values = getattr(trace, "y", None)
+        if y_values is None:
+            return False
+
+        values = pd.to_numeric(pd.Series(y_values), errors="coerce").dropna()
+
+        if len(values) > 5 and values.nunique() <= 2:
+            return True
+
+        return False
+
+    try:
+        axis_values = {}
+
+        for trace in fig.data:
+            if is_limit_or_reference_trace(trace):
+                continue
+
+            y_values = getattr(trace, "y", None)
+            if y_values is None:
+                continue
+
+            values = pd.to_numeric(pd.Series(y_values), errors="coerce").dropna()
+            if values.empty:
+                continue
+
+            axis_ref = getattr(trace, "yaxis", None) or "y"
+            layout_axis = "yaxis" if axis_ref == "y" else f"yaxis{axis_ref.replace('y', '')}"
+
+            axis_values.setdefault(layout_axis, []).extend(values.tolist())
+
+        for layout_axis, values in axis_values.items():
+            if layout_axis not in fig.layout:
+                continue
+
+            if not values:
+                continue
+
+            y_min = min(values)
+            y_max = max(values)
+
+            if y_max <= y_min:
+                continue
+
+            y_range = y_max - y_min
+            padding = y_range * 0.10
+
+            final_y_min = y_min - padding
+            final_y_max = y_max + padding
+
+            if final_y_min >= 0:
+                y_min = final_y_min
+            else:
+                y_min = 0
+
+            y_max = final_y_max
+
+            final_y_range = y_max - y_min
+            if final_y_range <= 0:
+                continue
+
+            dtick = final_y_range / FIXED_Y_SUBDIVISIONS
+
+            fig.layout[layout_axis].autorange = False
+            fig.layout[layout_axis].range = [y_min, y_max]
+            fig.layout[layout_axis].tickmode = "linear"
+            fig.layout[layout_axis].tick0 = y_min
+            fig.layout[layout_axis].dtick = dtick
+
+    except Exception:
+        pass
+
+    return fig
+
+
+class PlotBridge(QObject):
+    zoomChanged = Signal(str, str, str)
+
+    @Slot(str, str, str)
+    def onZoomChanged(self, source_name, x_min, x_max):
+        self.zoomChanged.emit(source_name, x_min, x_max)
+
+
+class PdfExportWorker(QObject):
+    finished = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, processed, selected_graphs, output_dir, zoom_mode):
+        super().__init__()
+        self.processed = processed
+        self.selected_graphs = selected_graphs
+        self.output_dir = output_dir
+        self.zoom_mode = zoom_mode
+
+    @Slot()
+    def run(self):
+        try:
+            pdf_path = export_figures_to_pdf(
+                processed=self.processed,
+                selected_graphs=self.selected_graphs,
+                output_dir=self.output_dir,
+                zoom_mode=self.zoom_mode,
+            )
+            self.finished.emit(str(pdf_path))
+        except Exception as exc:
+            self.error.emit(str(exc))
+
+
+class PdfExportTab(QWidget):
+    def __init__(self, graph_page):
+        super().__init__()
+        self.graph_page = graph_page
+        self.checkboxes: dict[str, QCheckBox] = {}
+        self.default_unchecked_graphs = {
+            "Deseq. Tensão",
+            "Deseq. Corrente",
+            "Tensão x Corrente",
+            "kW x kVA",
+            "Consumo",
+        }
+        self._pdf_thread: QThread | None = None
+        self._pdf_worker: PdfExportWorker | None = None
+        self._build_ui()
+
+    def _build_ui(self):
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #000000;
+                color: #f1f1f1;
+                font-family: Arial;
+            }
+            QLabel {
+                color: #f1f1f1;
+                background-color: #000000;
+            }
+            QCheckBox {
+                background-color: #000000;
+                color: #f1f1f1;
+                font-size: 13px;
+                padding: 4px 0;
+            }
+            QPushButton {
+                background-color: #2d7d46;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 18px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #25673a;
+            }
+            QPushButton:disabled {
+                background-color: #1f5131;
+                color: #d0d0d0;
+            }
+            QScrollArea {
+                border: 1px solid #000000;
+                background-color: #000000;
+                border-radius: 8px;
+            }
+            QScrollArea QWidget {
+                background-color: #000000;
+            }
+            QProgressBar {
+                border: 1px solid #222222;
+                border-radius: 8px;
+                background-color: #000000;
+                color: white;
+                text-align: center;
+                min-height: 22px;
+                font-weight: bold;
+            }
+            QProgressBar::chunk {
+                background-color: #2d6cdf;
+                border-radius: 7px;
+            }
+        """)
+
+        root_layout = QVBoxLayout()
+        root_layout.setContentsMargins(20, 20, 20, 20)
+        root_layout.setSpacing(16)
+
+        title = QLabel("Exportar PDF")
+        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+
+        subtitle = QLabel(
+            "Selecione os gráficos que deseja incluir no PDF. "
+            "O arquivo será gerado em formato A4 horizontal, com um gráfico por página."
+        )
+        subtitle.setWordWrap(True)
+        subtitle.setStyleSheet("font-size: 13px; color: #bbbbbb;")
+
+        self.status_label = QLabel("")
+        self.status_label.setVisible(False)
+        self.status_label.setStyleSheet("font-size: 13px; color: #bbbbbb; font-weight: bold;")
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setFormat("Gerando PDF... aguarde")
+        self.progress_bar.setVisible(False)
+
+        self.select_all_button = QPushButton("Selecionar todos")
+        self.select_all_button.clicked.connect(self.select_all)
+
+        self.clear_all_button = QPushButton("Limpar seleção")
+        self.clear_all_button.setStyleSheet("""
+            QPushButton {
+                background-color: #444444;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 18px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #5a5a5a;
+            }
+            QPushButton:disabled {
+                background-color: #303030;
+                color: #b0b0b0;
+            }
+        """)
+        self.clear_all_button.clicked.connect(self.clear_all)
+
+        self.export_button = QPushButton("Gerar PDF")
+        self.export_button.clicked.connect(self.export_pdf)
+
+        buttons_layout = QVBoxLayout()
+        buttons_layout.addWidget(self.select_all_button)
+        buttons_layout.addWidget(self.clear_all_button)
+        buttons_layout.addWidget(self.export_button)
+        buttons_layout.addWidget(self.status_label)
+        buttons_layout.addWidget(self.progress_bar)
+
+        checklist_container = QWidget()
+        checklist_layout = QVBoxLayout()
+        checklist_layout.setContentsMargins(0, 0, 0, 0)
+        checklist_layout.setSpacing(8)
+
+        for graph_name in GRAPH_EXPORT_ORDER:
+            checkbox = QCheckBox(graph_name)
+            checkbox.setChecked(graph_name not in self.default_unchecked_graphs)
+            self.checkboxes[graph_name] = checkbox
+            checklist_layout.addWidget(checkbox)
+
+        checklist_layout.addStretch()
+        checklist_container.setLayout(checklist_layout)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(checklist_container)
+
+        root_layout.addWidget(title)
+        root_layout.addWidget(subtitle)
+        root_layout.addWidget(scroll_area)
+        root_layout.addLayout(buttons_layout)
+
+        self.setLayout(root_layout)
+
+    def set_exporting_state(self, exporting: bool):
+        self.export_button.setDisabled(exporting)
+        self.select_all_button.setDisabled(exporting)
+        self.clear_all_button.setDisabled(exporting)
+
+        for checkbox in self.checkboxes.values():
+            checkbox.setDisabled(exporting)
+
+        self.progress_bar.setVisible(exporting)
+        self.status_label.setVisible(exporting)
+
+        if exporting:
+            self.export_button.setText("Gerando PDF...")
+            self.status_label.setText("Processando gráficos e montando o arquivo PDF. Aguarde...")
+        else:
+            self.export_button.setText("Gerar PDF")
+            self.status_label.setText("")
+
+    def select_all(self):
+        for checkbox in self.checkboxes.values():
+            checkbox.setChecked(True)
+
+    def clear_all(self):
+        for checkbox in self.checkboxes.values():
+            checkbox.setChecked(False)
+
+    def export_pdf(self):
+        selected_graphs = [
+            name for name, checkbox in self.checkboxes.items()
+            if checkbox.isChecked()
+        ]
+
+        if not selected_graphs:
+            QMessageBox.warning(
+                self,
+                "Exportar PDF",
+                "Selecione pelo menos um gráfico para exportação."
+            )
+            return
+
+        if not self.graph_page.current_processed:
+            QMessageBox.warning(
+                self,
+                "Exportar PDF",
+                "Nenhum gráfico foi carregado ainda."
+            )
+            return
+
+        output_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Selecionar pasta de destino do PDF"
+        )
+
+        if not output_dir:
+            return
+
+        try:
+            processed = self.graph_page.current_processed
+
+            zoom_mode = (
+                self.graph_page.current_x_min is not None
+                and self.graph_page.current_x_max is not None
+            )
+
+            if zoom_mode:
+                df = processed.dataframe.copy()
+                df["Datetime"] = pd.to_datetime(df["Datetime"])
+
+                df = df[
+                    (df["Datetime"] >= self.graph_page.current_x_min) &
+                    (df["Datetime"] <= self.graph_page.current_x_max)
+                ].copy()
+
+                processed_for_pdf = ProcessedData(
+                    company=processed.company,
+                    city=processed.city,
+                    trafo=processed.trafo,
+                    local=processed.local,
+                    revision=processed.revision,
+                    excel_path=processed.excel_path,
+                    dataframe=df,
+                    integration_time=processed.integration_time,
+                    tension=processed.tension,
+                )
+            else:
+                processed_for_pdf = processed
+
+            self.set_exporting_state(True)
+
+            self._pdf_thread = QThread()
+            self._pdf_worker = PdfExportWorker(
+                processed=processed_for_pdf,
+                selected_graphs=selected_graphs,
+                output_dir=Path(output_dir),
+                zoom_mode=zoom_mode,
+            )
+            self._pdf_worker.moveToThread(self._pdf_thread)
+
+            self._pdf_thread.started.connect(self._pdf_worker.run)
+            self._pdf_worker.finished.connect(self._on_pdf_finished)
+            self._pdf_worker.error.connect(self._on_pdf_error)
+            self._pdf_worker.finished.connect(self._pdf_thread.quit)
+            self._pdf_worker.error.connect(self._pdf_thread.quit)
+            self._pdf_thread.finished.connect(self._pdf_worker.deleteLater)
+            self._pdf_thread.finished.connect(self._pdf_thread.deleteLater)
+            self._pdf_thread.finished.connect(self._clear_pdf_thread_refs)
+            self._pdf_thread.start()
+
+        except Exception as e:
+            self.set_exporting_state(False)
+            QMessageBox.critical(
+                self,
+                "Erro ao gerar PDF",
+                f"Ocorreu um erro ao gerar o PDF:\n\n{str(e)}"
+            )
+
+    def _on_pdf_finished(self, pdf_path: str):
+        self.set_exporting_state(False)
+        QMessageBox.information(
+            self,
+            "PDF gerado",
+            f"PDF gerado com sucesso:\n\n{pdf_path}"
+        )
+
+    def _on_pdf_error(self, error_message: str):
+        self.set_exporting_state(False)
+        QMessageBox.critical(
+            self,
+            "Erro ao gerar PDF",
+            f"Ocorreu um erro ao gerar o PDF:\n\n{error_message}"
+        )
+
+    def _clear_pdf_thread_refs(self):
+        self._pdf_thread = None
+        self._pdf_worker = None
+
+class GraphPage(QWidget):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+
+        self.current_processed: ProcessedData | None = None
+        self.current_figures: dict[str, go.Figure] = {}
+        self.webviews: dict[str, QWebEngineView] = {}
+
+        self.syncing_zoom = False
+        self.current_x_min = None
+        self.current_x_max = None
+
+        self.plot_bridge = PlotBridge()
+        self.plot_bridge.zoomChanged.connect(self._on_zoom_changed)
+
+        self._build_ui()
+
+    def _build_ui(self):
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #000000;
+                color: #f1f1f1;
+                font-family: Arial;
+            }
+            QTabWidget::pane {
+                border: 1px solid #000000;
+                background: #000000;
+            }
+            QTabBar::tab {
+                background: #000000;
+                color: #dcdcdc;
+                padding: 8px 14px;
+                margin-right: 1px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+            QTabBar::tab:selected {
+                background: #2d6cdf;
+                color: white;
+            }
+            QTabBar::tab:hover {
+                background: #333333;
+            }
+        """)
+
+        root_layout = QVBoxLayout()
+        root_layout.setContentsMargins(5, 5, 5, 5)
+        root_layout.setSpacing(6)
+
+        self.tabs = QTabWidget()
+
+        self.tab_definitions = {
+            "Tensão": QWebEngineView(),
+            "Corrente": QWebEngineView(),
+            "Potência Ativa": QWebEngineView(),
+            "Potência Aparente": QWebEngineView(),
+            "Fator de Potência": QWebEngineView(),
+            "DHT Tensão": QWebEngineView(),
+            "DHT Corrente": QWebEngineView(),
+            "Deseq. Tensão": QWebEngineView(),
+            "Deseq. Corrente": QWebEngineView(),
+            "Consumo": QWebEngineView(),
+            "Tensão x Corrente": QWebEngineView(),
+            "kW x kVA": QWebEngineView(),
+        }
+
+        for tab_name, webview in self.tab_definitions.items():
+            self.tabs.addTab(webview, tab_name)
+            self.webviews[tab_name] = webview
+
+        self.pdf_export_tab = PdfExportTab(self)
+        self.tabs.addTab(self.pdf_export_tab, "Exportar PDF")
+
+        root_layout.addWidget(self.tabs)
+        self.setLayout(root_layout)
+
+    def _build_html_with_zoom_sync(self, fig: go.Figure, source_name: str):
+        html = fig.to_html(full_html=True, include_plotlyjs=True, div_id="plot")
+
+        extra_js = f"""
+        <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+        <script>
+        (function() {{
+            function attachZoomHandler() {{
+                if (typeof qt === 'undefined' || !qt.webChannelTransport) {{
+                    setTimeout(attachZoomHandler, 100);
+                    return;
+                }}
+
+                new QWebChannel(qt.webChannelTransport, function(channel) {{
+                    window.plotBridge = channel.objects.plotBridge;
+                    var plot = document.getElementById('plot');
+
+                    if (!plot || !plot.on) {{
+                        setTimeout(attachZoomHandler, 100);
+                        return;
+                    }}
+
+                    plot.on('plotly_relayout', function(eventdata) {{
+                        if (!eventdata) return;
+
+                        if (eventdata['xaxis.range[0]'] && eventdata['xaxis.range[1]']) {{
+                            window.plotBridge.onZoomChanged(
+                                "{source_name}",
+                                eventdata['xaxis.range[0]'],
+                                eventdata['xaxis.range[1]']
+                            );
+                        }}
+                        else if (eventdata['xaxis.autorange']) {{
+                            window.plotBridge.onZoomChanged(
+                                "{source_name}",
+                                "__FULL_VIEW__",
+                                "__FULL_VIEW__"
+                            );
+                        }}
+                    }});
+                }});
+            }}
+
+            window.addEventListener('load', function() {{
+                setTimeout(attachZoomHandler, 150);
+            }});
+        }})();
+        </script>
+        """
+
+        return html.replace("</body>", extra_js + "</body>")
+
+    def _render_webview_figure(self, tab_name: str, fig: go.Figure):
+        html = self._build_html_with_zoom_sync(fig, tab_name)
+
+        temp_file = Path(tempfile.gettempdir()) / (
+            f"plot_{tab_name.replace(' ', '_').replace('.', '').replace('/', '_')}.html"
+        )
+
+        with open(temp_file, "w", encoding="utf-8") as f:
+            f.write(html)
+
+        webview = self.webviews[tab_name]
+
+        channel = QWebChannel(webview.page())
+        channel.registerObject("plotBridge", self.plot_bridge)
+        webview.page().setWebChannel(channel)
+
+        webview.load(QUrl.fromLocalFile(str(temp_file)))
+
+    def _apply_interface_visual_standard(
+        self,
+        graph_name: str,
+        fig: go.Figure,
+        dataframe: pd.DataFrame,
+        zoom_mode: bool = False,
+    ):
+        if graph_name == "Consumo":
+            return apply_fixed_y_subdivisions(fig)
+
+        fig = apply_default_x_density(fig, dataframe)
+
+        if zoom_mode:
+            if graph_name != "Fator de Potência":
+                fig = apply_zoom_y_autorange(fig)
+            return fig
+
+        if graph_name in FIXED_Y_GRAPHS:
+            fig = apply_fixed_y_subdivisions(fig)
+
+        return fig
+
+    def _rebuild_figures_for_range(self, processed: ProcessedData, x_min=None, x_max=None):
+        df = processed.dataframe.copy()
+        df["Datetime"] = pd.to_datetime(df["Datetime"])
+
+        zoom_mode = x_min is not None and x_max is not None
+
+        if zoom_mode:
+            x_min = pd.to_datetime(x_min)
+            x_max = pd.to_datetime(x_max)
+            df = df[(df["Datetime"] >= x_min) & (df["Datetime"] <= x_max)].copy()
+
+        filtered_processed = ProcessedData(
+            company=processed.company,
+            city=processed.city,
+            trafo=processed.trafo,
+            local=processed.local,
+            revision=processed.revision,
+            excel_path=processed.excel_path,
+            dataframe=df,
+            integration_time=processed.integration_time,
+            tension=processed.tension,
+        )
+
+        figures = {
+            "Tensão": create_tension_graph(filtered_processed, show_logo=False),
+            "Corrente": create_current_graph(filtered_processed, show_logo=False),
+            "Potência Ativa": create_active_power_graph(filtered_processed, show_logo=False),
+            "Potência Aparente": create_apparent_power_graph(filtered_processed, show_logo=False),
+            "Fator de Potência": create_pf_graph(filtered_processed, show_logo=False),
+            "Deseq. Tensão": create_tension_imbalance_graph(filtered_processed, show_logo=False),
+            "Deseq. Corrente": create_current_imbalance_graph(filtered_processed, show_logo=False),
+            "Consumo": create_consumption_graph(filtered_processed, show_logo=False),
+            "DHT Tensão": create_dht_voltage_graph(filtered_processed, show_logo=False),
+            "DHT Corrente": create_dht_current_graph(filtered_processed, show_logo=False),
+            "Tensão x Corrente": create_combined_vxi_graph(filtered_processed, show_logo=False),
+            "kW x kVA": create_combined_kwxkva_graph(filtered_processed, show_logo=False),
+        }
+
+        for name, fig in figures.items():
+            figures[name] = self._apply_interface_visual_standard(
+                graph_name=name,
+                fig=fig,
+                dataframe=df,
+                zoom_mode=zoom_mode,
+            )
+
+        return figures, df
+
+    def _on_zoom_changed(self, source_name, x_min_str, x_max_str):
+        if self.syncing_zoom:
+            return
+
+        if not self.current_processed:
+            return
+
+        self.syncing_zoom = True
+
+        try:
+            if x_min_str == "__FULL_VIEW__" or x_max_str == "__FULL_VIEW__":
+                self.current_x_min = None
+                self.current_x_max = None
+
+                figures, df = self._rebuild_figures_for_range(
+                    self.current_processed,
+                    None,
+                    None,
+                )
+
+                self.current_figures = figures
+
+                for tab_name, fig in figures.items():
+                    self._render_webview_figure(tab_name, fig)
+
+                return
+
+            x_min = pd.to_datetime(x_min_str)
+            x_max = pd.to_datetime(x_max_str)
+
+            self.current_x_min = x_min
+            self.current_x_max = x_max
+
+            figures, df = self._rebuild_figures_for_range(
+                self.current_processed,
+                x_min,
+                x_max,
+            )
+
+            self.current_figures = figures
+
+            for tab_name, fig in figures.items():
+                self._render_webview_figure(tab_name, fig)
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Erro ao sincronizar zoom",
+                f"Ocorreu um erro ao sincronizar os gráficos:\n\n{str(e)}"
+            )
+        finally:
+            self.syncing_zoom = False
+
+    def load_processed_data(self, processed: ProcessedData):
+        self.current_processed = processed
+        self.current_x_min = None
+        self.current_x_max = None
+
+        try:
+            figures, df = self._rebuild_figures_for_range(processed, None, None)
+            self.current_figures = figures
+
+            for tab_name, fig in figures.items():
+                self._render_webview_figure(tab_name, fig)
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Erro ao renderizar gráficos",
+                f"Ocorreu um erro ao montar os gráficos:\n\n{str(e)}"
+            )

@@ -1,0 +1,26 @@
+# Ambiente virtual
+.venv/
+venv/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.idea/
+.vscode/
+
+# Build / PyInstaller
+dist/
+build/
+*.spec
+
+# Cache e testes locais
+cache/
+testar_consumo_etl.py
+
+# Logs / sistema
+*.log
+.DS_Store
+Thumbs.db
