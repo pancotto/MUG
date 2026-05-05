@@ -1,26 +1,42 @@
-# Ambiente virtual
-.venv/
-venv/
-
-# Cache Python
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyo
+*.pyd
 
-# IDE
-.idea/
+# Virtual environment
+.venv/
+venv/
+env/
+
+# VS Code
 .vscode/
 
-# Build / PyInstaller
-dist/
+# PyInstaller
 build/
+dist/
 *.spec
 
-# Cache e testes locais
-cache/
-testar_consumo_etl.py
-
-# Logs / sistema
+# Logs
 *.log
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+
+# Excel temporary files
+~$*.xlsx
+~$*.xlsm
+~$*.docx
+
+# Python cache/testing
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environment
+.env
