@@ -450,7 +450,7 @@ class PdfExportTab(QWidget):
         self.progress_bar.setFormat("Gerando PDF... aguarde")
         self.progress_bar.setVisible(False)
 
-        self.select_default_button = QPushButton("Selecionar padrão")
+        self.select_default_button = QPushButton("Seleção padrão")
         self.select_default_button.setStyleSheet("""
             QPushButton {
                 background-color: #2d7d46;
@@ -806,19 +806,52 @@ class GraphPage(QWidget):
         )
 
     def _add_version_label(self):
-        """Exibe a versão no canto superior direito da área de abas."""
-        version_label = QLabel(f"v{get_app_version()}")
-        version_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        version_label.setStyleSheet("""
-            QLabel {
+        """Exibe a versão no canto superior direito da área de abas como botão clicável."""
+        self.version_button = QPushButton(f"v{get_app_version()}")
+        self.version_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.version_button.setToolTip("Clique para ver informações sobre o MUG")
+        self.version_button.setStyleSheet("""
+            QPushButton {
                 color: #f1f1f1;
                 background-color: #000000;
+                border: none;
                 font-size: 11px;
                 font-weight: bold;
                 padding: 0 8px;
+                text-align: right;
+            }
+            QPushButton:hover {
+                color: #ffffff;
+                text-decoration: underline;
+                background-color: #111111;
+            }
+            QPushButton:pressed {
+                color: #d0d0d0;
             }
         """)
-        self.tabs.setCornerWidget(version_label, Qt.Corner.TopRightCorner)
+        self.version_button.clicked.connect(self.show_about_dialog)
+        self.tabs.setCornerWidget(self.version_button, Qt.Corner.TopRightCorner)
+
+    def show_about_dialog(self):
+        """Abre a janela Sobre o MUG."""
+        version = get_app_version()
+
+        about_text = (
+            "<b>MUG</b><br>"
+            "Monitoramento e Análise Gráfica de Grandezas Elétricas<br><br>"
+            f"<b>Versão:</b> v{version}<br>"
+            "<b>Copyright:</b> (C) 2026 ECOCEL<br><br>"
+            "Aplicação desktop para análise gráfica de grandezas elétricas, "
+            "processamento de arquivos Primata/Embrasul e exportação de gráficos em PDF.<br><br>"
+            "<b>Tecnologias:</b><br>"
+            "Python, PySide6, Plotly, Pandas, Kaleido e Chromium embarcado.<br><br>"
+            "<b>Distribuição:</b><br>"
+            "Aplicação Windows standalone com instalador próprio.<br><br>"
+            "<b>Repositório:</b><br>"
+            "github.com/pancotto/MUG"
+        )
+
+        QMessageBox.about(self, "Sobre o MUG", about_text)
 
     def _build_html_with_zoom_sync(self, fig: go.Figure, source_name: str):
         html = fig.to_html(full_html=True, include_plotlyjs=True, div_id="plot")

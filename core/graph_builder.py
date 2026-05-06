@@ -10,6 +10,10 @@ from plotly.subplots import make_subplots
 from core.models import ProcessedData
 from core.paths import get_app_assets
 
+Y_AXIS_TITLE_STANDOFF = 18
+Y_AXIS_TICK_LABEL_STANDOFF = 6
+LEFT_MARGIN = 112
+
 
 def image_file_to_base64(image_path: Path) -> str | None:
     if not image_path.exists():
@@ -93,6 +97,7 @@ def apply_common_layout(fig: go.Figure, df: pd.DataFrame, show_logo: bool = Fals
             tickvals=tickvals,
             ticktext=ticktext,
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             title_text="",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
         ),
@@ -725,6 +730,7 @@ def create_tension_graph(
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="TENSÃO (V)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -833,6 +839,7 @@ def create_current_graph(
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="CORRENTE (A)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -941,6 +948,7 @@ def create_active_power_graph(
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="POTÊNCIA ATIVA (kW)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -1049,6 +1057,7 @@ def create_apparent_power_graph(
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="POTÊNCIA APARENTE (kVA)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -1179,6 +1188,7 @@ def create_pf_graph(processed: ProcessedData, show_logo: bool = False) -> go.Fig
             range=[-101, 101],
             tickmode="array",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             tickvals=list(range(-100, 101, 10)),
             ticktext=[
                 "100" if x == 0 else f'{abs(100 - abs(x))} {"C" if x < 0 else "L"}'
@@ -1292,6 +1302,7 @@ def create_tension_imbalance_graph(
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="DESEQUILÍBRIO DE TENSÃO (%)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -1360,6 +1371,7 @@ def create_current_imbalance_graph(processed: ProcessedData, show_logo: bool = F
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="DESEQUILÍBRIO DE CORRENTE (%)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -1464,6 +1476,7 @@ def create_dht_voltage_graph(
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="DHT TENSÃO (%)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -1538,6 +1551,7 @@ def create_dht_current_graph(processed: ProcessedData, show_logo: bool = False) 
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_text="DHT CORRENTE (%)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -1577,6 +1591,7 @@ def create_combined_vxi_graph(processed: ProcessedData, show_logo: bool = False)
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
         ),
@@ -1584,6 +1599,7 @@ def create_combined_vxi_graph(processed: ProcessedData, show_logo: bool = False)
             title_text="CORRENTE (A)",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
         ),
@@ -1624,6 +1640,7 @@ def create_combined_kwxkva_graph(processed: ProcessedData, show_logo: bool = Fal
             zerolinecolor="grey",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
             showgrid=True,
@@ -1632,6 +1649,7 @@ def create_combined_kwxkva_graph(processed: ProcessedData, show_logo: bool = Fal
             title_text="POTÊNCIA APARENTE (kVA)",
             tickmode="auto",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             dtick=1,
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
             showgrid=False,
@@ -1815,6 +1833,7 @@ def create_consumption_graph(
             tickvals=tickvals,
             ticktext=ticktext,
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             title_text="",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
         ),
@@ -1822,6 +1841,7 @@ def create_consumption_graph(
             gridcolor="lightgrey",
             zerolinecolor="lightgrey",
             tickfont={"family": "Arial", "size": 11, "color": "#000000"},
+            ticklabelstandoff=Y_AXIS_TICK_LABEL_STANDOFF,
             title_text="CONSUMO (kWh)",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
             range=y_axis_range,
