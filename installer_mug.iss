@@ -1,34 +1,42 @@
 #define MyAppName "MUG"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "ECOCEL"
 #define MyAppExeName "MUG.exe"
 
 [Setup]
-AppId={{B8E0C4C9-3A44-4B9B-9D24-MUG100000001}
+AppId={{8C98D87B-4C26-4B59-B7A6-9A5B29F41220}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
-OutputDir=installer
-OutputBaseFilename=MUG_Setup_v{#MyAppVersion}
+
+DefaultDirName={autopf}\MUG
+DefaultGroupName=MUG
+
+OutputDir=installer\Output
+OutputBaseFilename=MUG_Setup_1.2.0
+
 Compression=lzma
 SolidCompression=yes
+
 WizardStyle=modern
-ArchitecturesInstallIn64BitMode=x64
+
+SetupIconFile=assets\mug.ico
+UninstallDisplayIcon={app}\MUG.exe
+
+ArchitecturesInstallIn64BitMode=x64compatible
 
 [Languages]
-Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "portuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Opções adicionais:"; Flags: unchecked
+Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDescription: "Opções adicionais:";
 
 [Files]
-Source: "dist\MUG\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\MUG\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{group}\MUG"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\MUG"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\MUG"; Filename: "{app}\MUG.exe"
+Name: "{autodesktop}\MUG"; Filename: "{app}\MUG.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Executar MUG"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\MUG.exe"; Description: "Executar MUG"; Flags: nowait postinstall skipifsilent
