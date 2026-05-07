@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import time
+import math
 
 import pandas as pd
 
@@ -46,16 +47,30 @@ def process_input_data(input_data: InputData) -> ProcessedData:
     integration_time = infer_integration_time(dataframe)
     tension = infer_nominal_tension(dataframe)
 
+    equipment_type = input_data.equipment_type
+    equipment_reference = input_data.equipment_reference
+    equipment_value = float(input_data.equipment_value)
+
+    if equipment_type == "DISJUNTOR":
+        # Potência aparente equivalente em kVA para manter compatibilidade
+        # com gráficos que usam referência de potência nominal.
+        nominal_power_kva = (float(tension) * equipment_value * math.sqrt(3)) / 1000
+    else:
+        nominal_power_kva = equipment_value
+
     return ProcessedData(
         company=input_data.company,
         city=input_data.city,
-        trafo=input_data.trafo,
+        trafo=nominal_power_kva,
         local=input_data.local,
         revision=input_data.revision,
         excel_path=file_path,
         dataframe=dataframe,
         integration_time=integration_time,
         tension=tension,
+        equipment_type=equipment_type,
+        equipment_reference=equipment_reference,
+        equipment_value=equipment_value,
     )
 
 

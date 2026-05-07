@@ -101,7 +101,7 @@ def apply_common_layout(fig: go.Figure, df: pd.DataFrame, show_logo: bool = Fals
             title_text="",
             title_font={"family": "Arial", "size": 11, "color": "#000000"},
         ),
-        margin=dict(l=95, r=115, t=95, b=50),
+        margin=dict(l=LEFT_MARGIN, r=115, t=95, b=50),
         font={"family": "Arial", "size": 12, "color": "#000000"},
         legend_title_font={"family": "Arial", "size": 11, "color": "#000000"},
         legend_font={"family": "Arial", "size": 11, "color": "#000000"},
@@ -739,8 +739,8 @@ def create_tension_graph(
         title={
             "text": (
                 f"<b>GRÁFICO TENSÃO - {processed.company} - {processed.city}</b><br>"
-                f"<sub><b>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
                 f"<sub>FAIXA ADEQUADA {min_adequacy} ≤ TL ≤ {max_adequacy} - ANEEL PRODIST MÓDULO 8</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -779,7 +779,7 @@ def create_current_graph(
 
     y_max_value, y_min_value, x_max, x_min = _get_extreme_points(df, columns)
 
-    max_current = (processed.trafo * 1000) / (float(processed.tension) * math.sqrt(3))
+    max_current = processed.nominal_current_a
     full = is_full_view(initial_view)
 
     if full:
@@ -848,8 +848,8 @@ def create_current_graph(
         title={
             "text": (
                 f"<b>GRÁFICO CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -913,14 +913,14 @@ def create_active_power_graph(
             kind="min",
         )
 
-    max_active_power = processed.trafo
+    max_active_power = processed.nominal_power_kw_limit
     full = is_full_view(initial_view)
     if full:
         fig.add_hline(
             y=max_active_power,
             line_dash="dash",
             line_color="red",
-            annotation_text=f"POT. NOMINAL {max_active_power:.1f}kW",
+            annotation_text=processed.nominal_power_annotation("kW"),
             annotation_position="top right",
             annotation_bgcolor="white",
             annotation_font=dict(family="Arial", size=10),
@@ -933,7 +933,7 @@ def create_active_power_graph(
                 y=max_active_power,
                 line_dash="dash",
                 line_color="red",
-                annotation_text=f"POT. NOMINAL {max_active_power:.1f}kW",
+                annotation_text=processed.nominal_power_annotation("kW"),
                 annotation_position="top right",
                 annotation_bgcolor="white",
                 annotation_font=dict(family="Arial", size=10),
@@ -957,8 +957,8 @@ def create_active_power_graph(
         title={
             "text": (
                 f"<b>GRÁFICO POTÊNCIA ATIVA - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1022,14 +1022,14 @@ def create_apparent_power_graph(
             kind="min",
         )
 
-    max_apparent_power = processed.trafo
+    max_apparent_power = processed.nominal_apparent_power_kva
     full = is_full_view(initial_view)
     if full:
         fig.add_hline(
             y=max_apparent_power,
             line_dash="dash",
             line_color="red",
-            annotation_text=f"POT. NOMINAL {max_apparent_power:.1f}kVA",
+            annotation_text=processed.nominal_power_annotation("kVA"),
             annotation_position="top right",
             annotation_bgcolor="white",
             annotation_font=dict(family="Arial", size=10),
@@ -1042,7 +1042,7 @@ def create_apparent_power_graph(
                 y=max_apparent_power,
                 line_dash="dash",
                 line_color="red",
-                annotation_text=f"POT. NOMINAL {max_apparent_power:.1f}kVA",
+                annotation_text=processed.nominal_power_annotation("kVA"),
                 annotation_position="top right",
                 annotation_bgcolor="white",
                 annotation_font=dict(family="Arial", size=10),
@@ -1066,8 +1066,8 @@ def create_apparent_power_graph(
         title={
             "text": (
                 f"<b>GRÁFICO POTÊNCIA APARENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1198,8 +1198,8 @@ def create_pf_graph(processed: ProcessedData, show_logo: bool = False) -> go.Fig
         title={
             "text": (
                 f"<b>GRÁFICO FATOR DE POTÊNCIA - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1311,8 +1311,8 @@ def create_tension_imbalance_graph(
         title={
             "text": (
                 f"<b>GRÁFICO DESEQUILÍBRIO DE TENSÃO - {processed.company} - {processed.city}</b><br>"
-                f"<sub><b>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
                 f"<sub>LIMITE 3% - ANEEL PRODIST MÓDULO 8</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1379,8 +1379,8 @@ def create_current_imbalance_graph(processed: ProcessedData, show_logo: bool = F
         title={
             "text": (
                 f"<b>GRÁFICO DESEQUILÍBRIO DE CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1485,8 +1485,8 @@ def create_dht_voltage_graph(
         title={
             "text": (
                 f"<b>GRÁFICO DHT TENSÃO - {processed.company} - {processed.city}</b><br>"
-                f"<sub><b>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
                 f"<sub>LIMITE 10% - ANEEL PRODIST MÓDULO 8</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1559,8 +1559,8 @@ def create_dht_current_graph(processed: ProcessedData, show_logo: bool = False) 
         title={
             "text": (
                 f"<b>GRÁFICO DHT CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1606,8 +1606,8 @@ def create_combined_vxi_graph(processed: ProcessedData, show_logo: bool = False)
         title={
             "text": (
                 f"<b>GRÁFICO TENSÃO & CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1657,8 +1657,8 @@ def create_combined_kwxkva_graph(processed: ProcessedData, show_logo: bool = Fal
         title={
             "text": (
                 f"<b>GRÁFICO POT. ATIVA & POT. APARENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1849,8 +1849,8 @@ def create_consumption_graph(
         title={
             "text": (
                 f"<b>GRÁFICO CONSUMO DE ENERGIA - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - TRANSFORMADOR {processed.trafo}kVA - "
-                f"{processed.tension}V - INT: {processed.integration_time}s - REV{processed.revision}</sub><br>"
+                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub><br>"
                 f"<sub><b>TOTAL: {total_text} kWh</b></sub>"
             ),
             "y": 0.98,

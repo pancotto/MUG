@@ -9,6 +9,7 @@ from PySide6.QtCore import QObject, QUrl, Signal, Slot, QThread, Qt
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QTabWidget,
     QMessageBox,
     QLabel,
@@ -39,7 +40,7 @@ from core.models import ProcessedData
 from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
 
 
-APP_VERSION_FALLBACK = "1.1.1"
+APP_VERSION_FALLBACK = "1.2.0"
 
 
 def get_app_version() -> str:
@@ -82,6 +83,23 @@ DEFAULT_PDF_GRAPHS = {
     "Fator de Potência",
     "DHT Tensão",
     "DHT Corrente",
+}
+
+
+
+TAB_DISPLAY_NAMES = {
+    "Tensão": "TENSÃO (V)",
+    "Corrente": "CORRENTE (I)",
+    "Potência Ativa": "POT. ATIVA (kW)",
+    "Potência Aparente": "POT. APARENTE (kVA)",
+    "Fator de Potência": "FATOR DE POTÊNCIA",
+    "DHT Tensão": "DHT TENSÃO",
+    "DHT Corrente": "DHT CORRENTE",
+    "Deseq. Tensão": "DESEQ. TENSÃO",
+    "Deseq. Corrente": "DESEQ. CORRENTE",
+    "Consumo": "CONSUMO (kWh)",
+    "Tensão x Corrente": "(V) x (I)",
+    "kW x kVA": "(kW) x (kVA)",
 }
 
 
@@ -431,7 +449,7 @@ class PdfExportTab(QWidget):
         root_layout.setContentsMargins(20, 20, 20, 20)
         root_layout.setSpacing(16)
 
-        title = QLabel("Exportar PDF")
+        title = QLabel("EXPORTAR PDF")
         title.setStyleSheet("font-size: 24px; font-weight: bold;")
 
         subtitle = QLabel(
@@ -450,7 +468,7 @@ class PdfExportTab(QWidget):
         self.progress_bar.setFormat("Gerando PDF... aguarde")
         self.progress_bar.setVisible(False)
 
-        self.select_default_button = QPushButton("Seleção padrão")
+        self.select_default_button = QPushButton("SELEÇÃO PADRÃO")
         self.select_default_button.setStyleSheet("""
             QPushButton {
                 background-color: #2d7d46;
@@ -471,7 +489,7 @@ class PdfExportTab(QWidget):
         """)
         self.select_default_button.clicked.connect(self.select_default)
 
-        self.select_all_button = QPushButton("Selecionar todos")
+        self.select_all_button = QPushButton("SELECIONAR TODOS")
         self.select_all_button.setStyleSheet("""
             QPushButton {
                 background-color: #2d7d46;
@@ -492,7 +510,7 @@ class PdfExportTab(QWidget):
         """)
         self.select_all_button.clicked.connect(self.select_all)
 
-        self.clear_all_button = QPushButton("Limpar seleção")
+        self.clear_all_button = QPushButton("LIMPAR SELEÇÃO")
         self.clear_all_button.setStyleSheet("""
             QPushButton {
                 background-color: #444444;
@@ -513,7 +531,7 @@ class PdfExportTab(QWidget):
         """)
         self.clear_all_button.clicked.connect(self.clear_all)
 
-        self.export_button = QPushButton("Gerar PDF")
+        self.export_button = QPushButton("EXPORTAR PDF")
         self.export_button.setStyleSheet("""
             QPushButton {
                 background-color: #1f5fbf;
@@ -580,10 +598,10 @@ class PdfExportTab(QWidget):
         self.status_label.setVisible(exporting)
 
         if exporting:
-            self.export_button.setText("Gerando PDF...")
+            self.export_button.setText("EXPORTANDO PDF...")
             self.status_label.setText("Processando gráficos e montando o arquivo PDF. Aguarde...")
         else:
-            self.export_button.setText("Gerar PDF")
+            self.export_button.setText("EXPORTAR PDF")
             self.status_label.setText("")
 
     def select_default(self):
@@ -655,6 +673,9 @@ class PdfExportTab(QWidget):
                     dataframe=df,
                     integration_time=processed.integration_time,
                     tension=processed.tension,
+                    equipment_type=processed.equipment_type,
+                    equipment_reference=processed.equipment_reference,
+                    equipment_value=processed.equipment_value,
                 )
             else:
                 processed_for_pdf = processed
@@ -748,6 +769,7 @@ class GraphPage(QWidget):
             QTabBar::tab:selected {
                 background: #2d6cdf;
                 color: white;
+                font-weight: bold;
             }
             QTabBar::tab:hover {
                 background: #333333;
@@ -786,11 +808,11 @@ class GraphPage(QWidget):
         }
 
         for tab_name, webview in self.tab_definitions.items():
-            self.tabs.addTab(webview, tab_name)
+            self.tabs.addTab(webview, TAB_DISPLAY_NAMES.get(tab_name, tab_name))
             self.webviews[tab_name] = webview
 
         self.pdf_export_tab = PdfExportTab(self)
-        self.export_pdf_tab_index = self.tabs.addTab(self.pdf_export_tab, "Exportar PDF")
+        self.export_pdf_tab_index = self.tabs.addTab(self.pdf_export_tab, "EXPORTAR PDF")
         self._highlight_pdf_export_tab()
         self._add_version_label()
 
@@ -806,7 +828,34 @@ class GraphPage(QWidget):
         )
 
     def _add_version_label(self):
-        """Exibe a versão no canto superior direito da área de abas como botão clicável."""
+        """Exibe ações globais no canto superior direito da área de abas."""
+        corner_widget = QWidget()
+        corner_layout = QHBoxLayout()
+        corner_layout.setContentsMargins(0, 0, 0, 0)
+        corner_layout.setSpacing(8)
+
+        self.new_analysis_button = QPushButton("NOVA ANÁLISE")
+        self.new_analysis_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.new_analysis_button.setToolTip("Retornar à tela inicial para iniciar uma nova análise")
+        self.new_analysis_button.setStyleSheet("""
+            QPushButton {
+                color: #ffffff;
+                background-color: #8b1e1e;
+                border: none;
+                border-radius: 4px;
+                font-size: 13px;
+                font-weight: bold;
+                padding: 8px 14px;
+            }
+            QPushButton:hover {
+                background-color: #a32626;
+            }
+            QPushButton:pressed {
+                background-color: #6f1818;
+            }
+        """)
+        self.new_analysis_button.clicked.connect(self.main_window.start_new_analysis)
+
         self.version_button = QPushButton(f"v{get_app_version()}")
         self.version_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.version_button.setToolTip("Clique para ver informações sobre o MUG")
@@ -830,7 +879,12 @@ class GraphPage(QWidget):
             }
         """)
         self.version_button.clicked.connect(self.show_about_dialog)
-        self.tabs.setCornerWidget(self.version_button, Qt.Corner.TopRightCorner)
+
+        corner_layout.addWidget(self.new_analysis_button)
+        corner_layout.addWidget(self.version_button)
+        corner_widget.setLayout(corner_layout)
+
+        self.tabs.setCornerWidget(corner_widget, Qt.Corner.TopRightCorner)
 
     def show_about_dialog(self):
         """Abre a janela Sobre o MUG."""
@@ -966,6 +1020,9 @@ class GraphPage(QWidget):
             dataframe=df,
             integration_time=processed.integration_time,
             tension=processed.tension,
+            equipment_type=processed.equipment_type,
+            equipment_reference=processed.equipment_reference,
+            equipment_value=processed.equipment_value,
         )
 
         figures = {
@@ -1045,6 +1102,20 @@ class GraphPage(QWidget):
             )
         finally:
             self.syncing_zoom = False
+
+    def clear_loaded_data(self):
+        self.current_processed = None
+        self.current_figures = {}
+        self.current_x_min = None
+        self.current_x_max = None
+
+        for webview in self.webviews.values():
+            webview.setHtml(
+                "<html><body style='background:#000000;color:#f1f1f1;'></body></html>"
+            )
+
+        self.pdf_export_tab.select_default()
+        self.tabs.setCurrentIndex(0)
 
     def load_processed_data(self, processed: ProcessedData):
         self.current_processed = processed
