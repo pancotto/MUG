@@ -5,6 +5,7 @@
 
 [Setup]
 AppId={{8C98D87B-4C26-4B59-B7A6-9A5B29F41220}
+
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -12,8 +13,8 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\MUG
 DefaultGroupName=MUG
 
-OutputDir=installer\Output
-OutputBaseFilename=MUG_Setup_1.2.0
+OutputDir=installer
+OutputBaseFilename=MUG_Setup_v{#MyAppVersion}
 
 Compression=lzma
 SolidCompression=yes
@@ -25,11 +26,15 @@ UninstallDisplayIcon={app}\MUG.exe
 
 ArchitecturesInstallIn64BitMode=x64compatible
 
+PrivilegesRequired=admin
+
+DisableProgramGroupPage=yes
+
 [Languages]
 Name: "portuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDescription: "Opções adicionais:";
+Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDescription: "Opções adicionais:"
 
 [Files]
 Source: "dist\MUG\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
