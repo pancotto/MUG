@@ -28,7 +28,7 @@ dist/
 # =========================
 # Installer / Executables
 # =========================
-installer/
+installer/Output/
 *.exe
 
 # =========================
