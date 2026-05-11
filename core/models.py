@@ -123,7 +123,6 @@ class ProcessedData:
         """
         Texto usado na segunda linha dos títulos dos gráficos.
 
-        Regra visual v1.2.0:
         - TRAFO: REFERÊNCIA - POTÊNCIA kVA
         - DISJUNTOR: REFERÊNCIA - CORRENTE A
 

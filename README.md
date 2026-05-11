@@ -2,9 +2,11 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.2.0**
+Current version: **v1.3.0**
 
-## 🔧 Technologies
+---
+
+# 🔧 Technologies
 
 - Python
 - PySide6 for the graphical user interface
@@ -13,12 +15,13 @@ Current version: **v1.2.0**
 - PyInstaller for Windows executable generation
 - Inno Setup for Windows installer generation
 - Embedded Chromium for PDF rendering
+- Kaleido for static PDF/image export
 
 ---
 
-## 📊 Features
+# 📊 Features
 
-### Electrical quantities visualization
+## Electrical quantities visualization
 
 - Voltage (V)
 - Current (I)
@@ -35,16 +38,16 @@ Current version: **v1.2.0**
 
 ---
 
-## ⚙️ Equipment workflow
+# ⚙️ Equipment workflow
 
-### Transformer mode
+## Transformer mode
 
 - Reference / Tag
 - Transformer power (kVA)
 - Automatic 380/220V or 220/127V title formatting
 - PRODIST Module 8 compliance labels
 
-### Circuit breaker mode
+## Circuit breaker mode
 
 - Reference / Tag
 - Current rating (A)
@@ -53,37 +56,54 @@ Current version: **v1.2.0**
 
 ---
 
-## 🖥️ Interface features
+# 🔄 Automatic updates
+
+The application supports automatic update checking using GitHub Releases.
+
+Features:
+
+- Automatic startup update verification
+- Integrated About dialog update information
+- Direct download access from the application
+- Release version comparison
+- Native desktop update workflow
+
+---
+
+# 🖥️ Interface features
 
 - Dark mode interface
 - Responsive graphical layout
 - Maximized startup window
-- About window integrated with application theme
+- Unified About dialog
 - Automatic uppercase formatting for operational fields
 - Clickable application version
 - “New Analysis” workflow without restarting the software
+- Consistent visual identity across dialogs and pages
 
 ---
 
-## 📄 PDF export
+# 📄 PDF export
 
 - Export selected graphs only
 - A4 landscape layout
 - One graph per page
 - Default graph preset selection
 - Embedded Chromium rendering support
+- Professional report-oriented layout
 
 ---
 
-## 📦 Distribution
+# 📦 Distribution
 
 - Windows standalone executable
 - Native installer generated with Inno Setup
 - No external dependencies required for end users
+- Portable execution support
 
 ---
 
-## 🚀 Local execution
+# 🚀 Local execution
 
 ```bash
 pip install -r requirements.txt

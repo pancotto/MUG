@@ -36,7 +36,6 @@ class MainWindow(QMainWindow):
         self.show_input_page()
 
         self.available_update = None
-
         self.check_for_updates()
 
     def set_processed_data(self, processed):

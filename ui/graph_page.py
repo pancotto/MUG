@@ -38,9 +38,10 @@ from core.graph_builder import (
 )
 from core.models import ProcessedData
 from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
+from ui.about_dialog import AboutDialog
 
 
-APP_VERSION_FALLBACK = "1.2.0"
+APP_VERSION_FALLBACK = "1.3.0"
 
 
 def get_app_version() -> str:
@@ -747,6 +748,7 @@ class GraphPage(QWidget):
 
         self._build_ui()
 
+
     def _build_ui(self):
         self.setStyleSheet("""
             QWidget {
@@ -812,7 +814,11 @@ class GraphPage(QWidget):
             self.webviews[tab_name] = webview
 
         self.pdf_export_tab = PdfExportTab(self)
-        self.export_pdf_tab_index = self.tabs.addTab(self.pdf_export_tab, "EXPORTAR PDF")
+        self.export_pdf_tab_index = self.tabs.addTab(
+            self.pdf_export_tab,
+            "EXPORTAR PDF"
+        )
+
         self._highlight_pdf_export_tab()
         self._add_version_label()
 
@@ -820,23 +826,33 @@ class GraphPage(QWidget):
         self.setLayout(root_layout)
 
     def _highlight_pdf_export_tab(self):
-        """Destaca a aba de exportação, mantendo a navegação principal limpa."""
+        """Destaca a aba de exportação."""
         tab_bar = self.tabs.tabBar()
+
         tab_bar.setTabToolTip(
             self.export_pdf_tab_index,
             "Exportar os gráficos selecionados em PDF A4 horizontal"
         )
 
     def _add_version_label(self):
-        """Exibe ações globais no canto superior direito da área de abas."""
+        """Exibe ações globais no canto superior direito."""
+
         corner_widget = QWidget()
+
         corner_layout = QHBoxLayout()
         corner_layout.setContentsMargins(0, 0, 0, 0)
         corner_layout.setSpacing(8)
 
         self.new_analysis_button = QPushButton("NOVA ANÁLISE")
-        self.new_analysis_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.new_analysis_button.setToolTip("Retornar à tela inicial para iniciar uma nova análise")
+
+        self.new_analysis_button.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+
+        self.new_analysis_button.setToolTip(
+            "Retornar à tela inicial para iniciar uma nova análise"
+        )
+
         self.new_analysis_button.setStyleSheet("""
             QPushButton {
                 color: #ffffff;
@@ -847,18 +863,32 @@ class GraphPage(QWidget):
                 font-weight: bold;
                 padding: 8px 14px;
             }
+
             QPushButton:hover {
                 background-color: #a32626;
             }
+
             QPushButton:pressed {
                 background-color: #6f1818;
             }
         """)
-        self.new_analysis_button.clicked.connect(self.main_window.start_new_analysis)
 
-        self.version_button = QPushButton(f"v{get_app_version()}")
-        self.version_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.version_button.setToolTip("Clique para ver informações sobre o MUG")
+        self.new_analysis_button.clicked.connect(
+            self.main_window.start_new_analysis
+        )
+
+        self.version_button = QPushButton(
+            f"v{get_app_version()}"
+        )
+
+        self.version_button.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+
+        self.version_button.setToolTip(
+            "Clique para ver informações sobre o MUG"
+        )
+
         self.version_button.setStyleSheet("""
             QPushButton {
                 color: #f1f1f1;
@@ -869,95 +899,102 @@ class GraphPage(QWidget):
                 padding: 0 8px;
                 text-align: right;
             }
+
             QPushButton:hover {
                 color: #ffffff;
                 text-decoration: underline;
                 background-color: #111111;
             }
+
             QPushButton:pressed {
                 color: #d0d0d0;
             }
         """)
-        self.version_button.clicked.connect(self.show_about_dialog)
+
+        self.version_button.clicked.connect(
+            self.show_about_dialog
+        )
 
         corner_layout.addWidget(self.new_analysis_button)
         corner_layout.addWidget(self.version_button)
+
         corner_widget.setLayout(corner_layout)
 
-        self.tabs.setCornerWidget(corner_widget, Qt.Corner.TopRightCorner)
-
-    def show_about_dialog(self):
-        """Abre a janela Sobre o MUG."""
-        version = get_app_version()
-
-        about_text = (
-            "<b>MUG</b><br>"
-            "Monitoramento e Análise Gráfica de Grandezas Elétricas<br><br>"
-            f"<b>Versão:</b> v{version}<br>"
-            "<b>Copyright:</b> (C) 2026 ECOCEL<br><br>"
-            "Aplicação desktop para análise gráfica de grandezas elétricas, "
-            "processamento de arquivos Primata/Embrasul e exportação de gráficos em PDF.<br><br>"
-            "<b>Tecnologias:</b><br>"
-            "Python, PySide6, Plotly, Pandas, Kaleido e Chromium embarcado.<br><br>"
-            "<b>Distribuição:</b><br>"
-            "Aplicação Windows standalone com instalador próprio.<br><br>"
-            "<b>Repositório:</b><br>"
-            "github.com/pancotto/MUG"
+        self.tabs.setCornerWidget(
+            corner_widget,
+            Qt.Corner.TopRightCorner
         )
 
-        QMessageBox.about(self, "Sobre o MUG", about_text)
+    def show_about_dialog(self):
+
+        print("\n[ABOUT DIALOG]")
+        print("available_update:")
+        print(self.main_window.available_update)
+
+        dialog = AboutDialog(
+            self,
+            app_version=get_app_version(),
+            available_update=getattr(
+                self.main_window,
+                "available_update",
+                None
+            )
+        )
+
+        dialog.exec()
+
 
     def _build_html_with_zoom_sync(self, fig: go.Figure, source_name: str):
-        html = fig.to_html(full_html=True, include_plotlyjs=True, div_id="plot")
+            html = fig.to_html(full_html=True, include_plotlyjs=True, div_id="plot")
 
-        extra_js = f"""
-        <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
-        <script>
-        (function() {{
-            function attachZoomHandler() {{
-                if (typeof qt === 'undefined' || !qt.webChannelTransport) {{
-                    setTimeout(attachZoomHandler, 100);
-                    return;
-                }}
-
-                new QWebChannel(qt.webChannelTransport, function(channel) {{
-                    window.plotBridge = channel.objects.plotBridge;
-                    var plot = document.getElementById('plot');
-
-                    if (!plot || !plot.on) {{
+            extra_js = f"""
+            <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+            <script>
+            (function() {{
+                function attachZoomHandler() {{
+                    if (typeof qt === 'undefined' || !qt.webChannelTransport) {{
                         setTimeout(attachZoomHandler, 100);
                         return;
                     }}
 
-                    plot.on('plotly_relayout', function(eventdata) {{
-                        if (!eventdata) return;
+                    new QWebChannel(qt.webChannelTransport, function(channel) {{
+                        window.plotBridge = channel.objects.plotBridge;
+                        var plot = document.getElementById('plot');
 
-                        if (eventdata['xaxis.range[0]'] && eventdata['xaxis.range[1]']) {{
-                            window.plotBridge.onZoomChanged(
-                                "{source_name}",
-                                eventdata['xaxis.range[0]'],
-                                eventdata['xaxis.range[1]']
-                            );
+                        if (!plot || !plot.on) {{
+                            setTimeout(attachZoomHandler, 100);
+                            return;
                         }}
-                        else if (eventdata['xaxis.autorange']) {{
-                            window.plotBridge.onZoomChanged(
-                                "{source_name}",
-                                "__FULL_VIEW__",
-                                "__FULL_VIEW__"
-                            );
-                        }}
+
+                        plot.on('plotly_relayout', function(eventdata) {{
+                            if (!eventdata) return;
+
+                            if (eventdata['xaxis.range[0]'] && eventdata['xaxis.range[1]']) {{
+                                window.plotBridge.onZoomChanged(
+                                    "{source_name}",
+                                    eventdata['xaxis.range[0]'],
+                                    eventdata['xaxis.range[1]']
+                                );
+                            }}
+                            else if (eventdata['xaxis.autorange']) {{
+                                window.plotBridge.onZoomChanged(
+                                    "{source_name}",
+                                    "__FULL_VIEW__",
+                                    "__FULL_VIEW__"
+                                );
+                            }}
+                        }});
                     }});
+                }}
+
+                window.addEventListener('load', function() {{
+                    setTimeout(attachZoomHandler, 150);
                 }});
-            }}
+            }})();
+            </script>
+            """
 
-            window.addEventListener('load', function() {{
-                setTimeout(attachZoomHandler, 150);
-            }});
-        }})();
-        </script>
-        """
-
-        return html.replace("</body>", extra_js + "</body>")
+            return html.replace("</body>", extra_js + "</body>")
 
     def _render_webview_figure(self, tab_name: str, fig: go.Figure):
         html = self._build_html_with_zoom_sync(fig, tab_name)
@@ -1118,20 +1155,20 @@ class GraphPage(QWidget):
         self.tabs.setCurrentIndex(0)
 
     def load_processed_data(self, processed: ProcessedData):
-        self.current_processed = processed
-        self.current_x_min = None
-        self.current_x_max = None
+            self.current_processed = processed
+            self.current_x_min = None
+            self.current_x_max = None
 
-        try:
-            figures, df = self._rebuild_figures_for_range(processed, None, None)
-            self.current_figures = figures
+            try:
+                figures, df = self._rebuild_figures_for_range(processed, None, None)
+                self.current_figures = figures
 
-            for tab_name, fig in figures.items():
-                self._render_webview_figure(tab_name, fig)
+                for tab_name, fig in figures.items():
+                    self._render_webview_figure(tab_name, fig)
 
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Erro ao renderizar gráficos",
-                f"Ocorreu um erro ao montar os gráficos:\n\n{str(e)}"
-            )
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Erro ao renderizar gráficos",
+                    f"Ocorreu um erro ao montar os gráficos:\n\n{str(e)}"
+                )

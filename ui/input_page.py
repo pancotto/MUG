@@ -10,7 +10,7 @@ except Exception:
     get_app_assets = None
 
 
-APP_VERSION_FALLBACK = "1.2.0"
+APP_VERSION_FALLBACK = "1.3.0"
 
 
 def get_app_version() -> str:
@@ -47,6 +47,8 @@ def get_app_version() -> str:
 
 from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
 from PySide6.QtGui import QPixmap
+from ui.about_dialog import AboutDialog
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -692,82 +694,19 @@ class InputPage(QWidget):
         dialog.exec()
 
     def show_about_dialog(self):
-        version = get_app_version()
 
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Sobre o MUG")
-        dialog.setMinimumSize(540, 330)
-        dialog.setStyleSheet("""
-            QDialog {
-                background-color: #000000;
-            }
-            QLabel {
-                background-color: transparent;
-                color: #f1f1f1;
-                font-family: Arial;
-                font-size: 12px;
-            }
-            QPushButton {
-                background-color: #000000;
-                color: #ffffff;
-                border: 1px solid #4d8dff;
-                border-radius: 6px;
-                padding: 8px 22px;
-                font-weight: bold;
-                min-width: 90px;
-            }
-            QPushButton:hover {
-                background-color: #203a63;
-            }
-        """)
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(28, 24, 28, 20)
-        layout.setSpacing(10)
-
-        title_label = QLabel("MUG")
-        title_label.setStyleSheet("""
-            QLabel {
-                font-size: 20px;
-                font-weight: bold;
-                color: #ffffff;
-            }
-        """)
-
-        subtitle_label = QLabel("Monitoramento e Análise Gráfica de Grandezas Elétricas")
-        subtitle_label.setStyleSheet("font-size: 12px; color: #f1f1f1;")
-
-        info_label = QLabel(
-            f"<b>Versão:</b> v{version}<br>"
-            "<b>Copyright:</b> (C) 2026 ECOCEL<br><br>"
-            "Aplicação desktop para análise gráfica de grandezas elétricas, "
-            "processamento de arquivos Primata/Embrasul e exportação de gráficos em PDF.<br><br>"
-            "<b>Tecnologias:</b><br>"
-            "Python, PySide6, Plotly, Pandas, Kaleido e Chromium embarcado.<br><br>"
-            "<b>Distribuição:</b><br>"
-            "Aplicação Windows standalone com instalador próprio.<br><br>"
-            "<b>Repositório:</b><br>"
-            "github.com/pancotto/MUG"
+        dialog = AboutDialog(
+            self,
+            app_version=get_app_version(),
+            available_update=getattr(
+                self.main_window,
+                "available_update",
+                None
+            )
         )
-        info_label.setWordWrap(True)
-        info_label.setTextFormat(Qt.TextFormat.RichText)
 
-        close_button = QPushButton("OK")
-        close_button.clicked.connect(dialog.close)
-
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        button_layout.addWidget(close_button)
-
-        layout.addWidget(title_label)
-        layout.addWidget(subtitle_label)
-        layout.addSpacing(6)
-        layout.addWidget(info_label)
-        layout.addStretch()
-        layout.addLayout(button_layout)
-
-        dialog.setLayout(layout)
         dialog.exec()
+
 
     def select_data_file(self):
         file_path, _ = QFileDialog.getOpenFileName(

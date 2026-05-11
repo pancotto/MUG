@@ -848,7 +848,7 @@ def create_current_graph(
         title={
             "text": (
                 f"<b>GRÁFICO CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -957,7 +957,7 @@ def create_active_power_graph(
         title={
             "text": (
                 f"<b>GRÁFICO POTÊNCIA ATIVA - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1066,7 +1066,7 @@ def create_apparent_power_graph(
         title={
             "text": (
                 f"<b>GRÁFICO POTÊNCIA APARENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1198,7 +1198,7 @@ def create_pf_graph(processed: ProcessedData, show_logo: bool = False) -> go.Fig
         title={
             "text": (
                 f"<b>GRÁFICO FATOR DE POTÊNCIA - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1379,7 +1379,7 @@ def create_current_imbalance_graph(processed: ProcessedData, show_logo: bool = F
         title={
             "text": (
                 f"<b>GRÁFICO DESEQUILÍBRIO DE CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1559,7 +1559,7 @@ def create_dht_current_graph(processed: ProcessedData, show_logo: bool = False) 
         title={
             "text": (
                 f"<b>GRÁFICO DHT CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1606,7 +1606,7 @@ def create_combined_vxi_graph(processed: ProcessedData, show_logo: bool = False)
         title={
             "text": (
                 f"<b>GRÁFICO TENSÃO & CORRENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1657,7 +1657,7 @@ def create_combined_kwxkva_graph(processed: ProcessedData, show_logo: bool = Fal
         title={
             "text": (
                 f"<b>GRÁFICO POT. ATIVA & POT. APARENTE - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1745,8 +1745,7 @@ def create_consumption_graph(
         .sum()
         .reset_index()
     )
-    daily = daily[daily["Consumo kWh"] > 0].copy()
-
+    
     if daily.empty:
         daily = pd.DataFrame({"Datetime": [df["Datetime"].min()], "Consumo kWh": [0.0]})
 
@@ -1849,9 +1848,9 @@ def create_consumption_graph(
         title={
             "text": (
                 f"<b>GRÁFICO CONSUMO DE ENERGIA - {processed.company} - {processed.city}</b><br>"
-                f"<sub>{processed.local} - {processed.equipment_description()} - "
+                f"<sub><b>{processed.local} - {processed.equipment_description()} - "
                 f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub><br>"
-                f"<sub><b>TOTAL: {total_text} kWh</b></sub>"
+                f"CONSUMO TOTAL: {total_text} kWh"
             ),
             "y": 0.98,
             "x": 0.5,
