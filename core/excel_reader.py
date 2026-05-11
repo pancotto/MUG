@@ -487,6 +487,20 @@ def parse_datetime_columns(df: pd.DataFrame) -> pd.Series:
         date_parsed = pd.to_datetime(date_raw, errors="coerce")
     else:
         date_as_text = pd.Series(date_raw, index=df.index).astype(str).str.strip()
+        time_as_text = pd.Series(time_raw, index=df.index).astype(str).str.strip()
+
+        primata_txt_date_format = date_as_text.str.fullmatch(r"\d{2}/\d{2}/\d{2}").all()
+        primata_txt_time_format = time_as_text.str.fullmatch(r"\d{2}:\d{2}:\d{2}").all()
+
+        if primata_txt_date_format and primata_txt_time_format:
+            parsed_datetime = pd.to_datetime(
+                date_as_text + " " + time_as_text,
+                format="%d/%m/%y %H:%M:%S",
+                errors="coerce",
+            )
+
+            if parsed_datetime.notna().sum() > 0:
+                return parsed_datetime
 
         # Primata TXT normalmente usa dd/mm/aa.
         date_parsed = pd.to_datetime(date_as_text, format="%d/%m/%y", errors="coerce")

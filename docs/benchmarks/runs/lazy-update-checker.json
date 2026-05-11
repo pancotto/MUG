@@ -1,0 +1,676 @@
+{
+  "schema_version": 1,
+  "run_id": "lazy-update-checker",
+  "created_at": "2026-05-11T20:05:06",
+  "dataset": {
+    "path": "benchmarks\\datasets\\embrasul.txt",
+    "suffix": ".txt",
+    "rows": 15044,
+    "columns": 71
+  },
+  "environment": {
+    "python": "3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]",
+    "platform": "win32",
+    "executable": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\.venv\\Scripts\\python.exe"
+  },
+  "metrics": {
+    "startup": {
+      "seconds": 0.898801600036677,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "app_import_seconds": 0.757356
+      }
+    },
+    "etl": {
+      "seconds": 1.5561162999947555,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "dataset": "embrasul.txt"
+      }
+    },
+    "initial_graph_generation": {
+      "seconds": 1.2603261999902315,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "rows": 15044
+      }
+    },
+    "initial_graphs": {
+      "graphs": {
+        "Tensao": {
+          "seconds": 0.2549956000293605,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Corrente": {
+          "seconds": 0.06839950004359707,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Potencia Ativa": {
+          "seconds": 0.09202250000089407,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Potencia Aparente": {
+          "seconds": 0.06215649994555861,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Fator de Potencia": {
+          "seconds": 0.048750200017821044,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Deseq. Tensao": {
+          "seconds": 0.050715900026261806,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Deseq. Corrente": {
+          "seconds": 0.04646029998548329,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Consumo": {
+          "seconds": 0.04011399997398257,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "DHT Tensao": {
+          "seconds": 0.06182239996269345,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "DHT Corrente": {
+          "seconds": 0.06680440000491217,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "Tensao x Corrente": {
+          "seconds": 0.1617617000010796,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        },
+        "kW x kVA": {
+          "seconds": 0.16774869995424524,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 15044
+          }
+        }
+      },
+      "graph_count": 12
+    },
+    "zoom_rebuild": {
+      "seconds": 0.7056357000255957,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "rows": 7522
+      }
+    },
+    "zoom_graphs": {
+      "graphs": {
+        "Tensao": {
+          "seconds": 0.06370830000378191,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Corrente": {
+          "seconds": 0.051261099986732006,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Potencia Ativa": {
+          "seconds": 0.04160329996375367,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Potencia Aparente": {
+          "seconds": 0.04323640000075102,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Fator de Potencia": {
+          "seconds": 0.03205620002700016,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Deseq. Tensao": {
+          "seconds": 0.04698210000060499,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Deseq. Corrente": {
+          "seconds": 0.037295600050128996,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Consumo": {
+          "seconds": 0.02851660002488643,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "DHT Tensao": {
+          "seconds": 0.04786320001585409,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "DHT Corrente": {
+          "seconds": 0.04645899997558445,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "Tensao x Corrente": {
+          "seconds": 0.13280249998206273,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        },
+        "kW x kVA": {
+          "seconds": 0.1289857000228949,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 7522
+          }
+        }
+      },
+      "graph_count": 12
+    },
+    "pdf_export": {
+      "seconds": 21.074288600008003,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "selected": 12
+      }
+    },
+    "pdf_graphs": {
+      "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\lazy-update-checker\\pdf\\benchmark-export.pdf",
+      "graphs": {
+        "Tensão": {
+          "build": {
+            "seconds": 0.09258019999833778,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.7562004000064917,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.03944209998007864,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Corrente": {
+          "build": {
+            "seconds": 0.21580160001758486,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.6709581000031903,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.017495399981271476,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Potência Ativa": {
+          "build": {
+            "seconds": 0.10849360004067421,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.5741420999984257,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.011493200028780848,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Potência Aparente": {
+          "build": {
+            "seconds": 0.11594170000171289,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.5378955000196584,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.014766599982976913,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Fator de Potência": {
+          "build": {
+            "seconds": 0.09142119996249676,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.5197972999885678,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.01641739998012781,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "DHT Tensão": {
+          "build": {
+            "seconds": 0.12425350002013147,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.6956420000060461,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.018502000020816922,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "DHT Corrente": {
+          "build": {
+            "seconds": 0.10348550003254786,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.6824969000299461,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.014716200006660074,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Deseq. Tensão": {
+          "build": {
+            "seconds": 0.11104960000375286,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.6057705999701284,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.016330800019204617,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Deseq. Corrente": {
+          "build": {
+            "seconds": 0.07484469999326393,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.4773295999621041,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.013643799989949912,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Consumo": {
+          "build": {
+            "seconds": 0.053599199978634715,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.3559463999699801,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.01463380001951009,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "Tensão x Corrente": {
+          "build": {
+            "seconds": 0.23518240003613755,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.90250060003018,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.01457170001231134,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        },
+        "kW x kVA": {
+          "build": {
+            "seconds": 0.1703842999995686,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {
+              "rows": 15044
+            }
+          },
+          "image": {
+            "seconds": 1.5634922999888659,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          },
+          "page": {
+            "seconds": 0.014580799965187907,
+            "memory_start_mb": null,
+            "memory_end_mb": null,
+            "memory_delta_mb": null,
+            "status": "ok",
+            "details": {}
+          }
+        }
+      },
+      "write": {
+        "seconds": 0.012116700003389269,
+        "memory_start_mb": null,
+        "memory_end_mb": null,
+        "memory_delta_mb": null,
+        "status": "ok",
+        "details": {
+          "pages": 12
+        }
+      },
+      "graph_count": 12
+    }
+  },
+  "artifacts": {
+    "log": "docs\\benchmarks\\logs\\lazy-update-checker.log",
+    "pdf": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\lazy-update-checker\\pdf\\benchmark-export.pdf",
+    "json": "docs\\benchmarks\\runs\\lazy-update-checker.json",
+    "markdown": "docs\\benchmarks\\runs\\lazy-update-checker.md"
+  }
+}
