@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "run_id": "primata-xlsx-dtype-reuse",
-  "created_at": "2026-05-11T20:43:17",
+  "run_id": "embrasul-dtype-reuse",
+  "created_at": "2026-05-11T20:42:57",
   "dataset": {
-    "path": "benchmarks\\datasets\\primata.xlsx",
-    "suffix": ".xlsx",
-    "rows": 33603,
-    "columns": 65
+    "path": "benchmarks\\datasets\\embrasul.txt",
+    "suffix": ".txt",
+    "rows": 15044,
+    "columns": 71
   },
   "environment": {
     "python": "3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]",
@@ -15,290 +15,290 @@
   },
   "metrics": {
     "startup": {
-      "seconds": 20.590561699995305,
+      "seconds": 2.250054999953136,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
       "status": "ok",
       "details": {
-        "app_import_seconds": 20.472027
+        "app_import_seconds": 2.096396
       }
     },
     "etl": {
-      "seconds": 9.804740499996115,
+      "seconds": 0.746882600011304,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
       "status": "ok",
       "details": {
-        "dataset": "primata.xlsx"
+        "dataset": "embrasul.txt"
       }
     },
     "initial_graph_generation": {
-      "seconds": 1.3419444999890402,
+      "seconds": 1.548079099971801,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
       "status": "ok",
       "details": {
-        "rows": 33603
+        "rows": 15044
       }
     },
     "initial_graphs": {
       "graphs": {
         "Tensao": {
-          "seconds": 0.2612144000013359,
+          "seconds": 0.48216539999702945,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Corrente": {
-          "seconds": 0.08270600001560524,
+          "seconds": 0.06648149999091402,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Potencia Ativa": {
-          "seconds": 0.060333100031130016,
+          "seconds": 0.07717499998398125,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Potencia Aparente": {
-          "seconds": 0.080855900014285,
+          "seconds": 0.051487699965946376,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Fator de Potencia": {
-          "seconds": 0.057987599982880056,
+          "seconds": 0.04336970002623275,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Deseq. Tensao": {
-          "seconds": 0.060325499973259866,
+          "seconds": 0.05322489998070523,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Deseq. Corrente": {
-          "seconds": 0.05286769999656826,
+          "seconds": 0.04689679999137297,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Consumo": {
-          "seconds": 0.04825089999940246,
+          "seconds": 0.04507890000240877,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "DHT Tensao": {
-          "seconds": 0.07207679998828098,
+          "seconds": 0.060101900016888976,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "DHT Corrente": {
-          "seconds": 0.07444870000472292,
+          "seconds": 0.057155099988449365,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "Tensao x Corrente": {
-          "seconds": 0.21293360000709072,
+          "seconds": 0.15496870002243668,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         },
         "kW x kVA": {
-          "seconds": 0.1786201000213623,
+          "seconds": 0.13180780003312975,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 33603
+            "rows": 15044
           }
         }
       },
       "graph_count": 12
     },
     "zoom_rebuild": {
-      "seconds": 0.7446105999988504,
+      "seconds": 0.6886951999622397,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
       "status": "ok",
       "details": {
-        "rows": 16802
+        "rows": 7522
       }
     },
     "zoom_graphs": {
       "graphs": {
         "Tensao": {
-          "seconds": 0.07873529999051243,
+          "seconds": 0.0537126999697648,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Corrente": {
-          "seconds": 0.0564316000090912,
+          "seconds": 0.05345639999723062,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Potencia Ativa": {
-          "seconds": 0.043675399967469275,
+          "seconds": 0.042187799990642816,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Potencia Aparente": {
-          "seconds": 0.04397840000456199,
+          "seconds": 0.04264200001489371,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Fator de Potencia": {
-          "seconds": 0.038583100016694516,
+          "seconds": 0.031340899993665516,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Deseq. Tensao": {
-          "seconds": 0.044053399993572384,
+          "seconds": 0.04295279999496415,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Deseq. Corrente": {
-          "seconds": 0.038888300012331456,
+          "seconds": 0.038109100016299635,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Consumo": {
-          "seconds": 0.03236860001925379,
+          "seconds": 0.03128080000169575,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "DHT Tensao": {
-          "seconds": 0.05422980000730604,
+          "seconds": 0.07546170003479347,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "DHT Corrente": {
-          "seconds": 0.05029470002045855,
+          "seconds": 0.048362999979872257,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "Tensao x Corrente": {
-          "seconds": 0.15415459999348968,
+          "seconds": 0.12158809998072684,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         },
         "kW x kVA": {
-          "seconds": 0.10642199998255819,
+          "seconds": 0.10498740000184625,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
           "status": "ok",
           "details": {
-            "rows": 16802
+            "rows": 7522
           }
         }
       },
@@ -306,8 +306,8 @@
     }
   },
   "artifacts": {
-    "log": "docs\\benchmarks\\logs\\primata-xlsx-dtype-reuse.log",
-    "json": "docs\\benchmarks\\runs\\primata-xlsx-dtype-reuse.json",
-    "markdown": "docs\\benchmarks\\runs\\primata-xlsx-dtype-reuse.md"
+    "log": "docs\\benchmarks\\logs\\embrasul-dtype-reuse.log",
+    "json": "docs\\benchmarks\\runs\\embrasul-dtype-reuse.json",
+    "markdown": "docs\\benchmarks\\runs\\embrasul-dtype-reuse.md"
   }
 }

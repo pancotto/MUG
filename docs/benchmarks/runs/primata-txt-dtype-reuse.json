@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "run_id": "primata-xlsx-dtype-reuse",
-  "created_at": "2026-05-11T20:43:17",
+  "run_id": "primata-txt-dtype-reuse",
+  "created_at": "2026-05-11T20:42:57",
   "dataset": {
-    "path": "benchmarks\\datasets\\primata.xlsx",
-    "suffix": ".xlsx",
+    "path": "benchmarks\\datasets\\primata.txt",
+    "suffix": ".txt",
     "rows": 33603,
     "columns": 65
   },
@@ -15,27 +15,27 @@
   },
   "metrics": {
     "startup": {
-      "seconds": 20.590561699995305,
+      "seconds": 2.2553383000195026,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
       "status": "ok",
       "details": {
-        "app_import_seconds": 20.472027
+        "app_import_seconds": 2.0852
       }
     },
     "etl": {
-      "seconds": 9.804740499996115,
+      "seconds": 2.122797299991362,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
       "status": "ok",
       "details": {
-        "dataset": "primata.xlsx"
+        "dataset": "primata.txt"
       }
     },
     "initial_graph_generation": {
-      "seconds": 1.3419444999890402,
+      "seconds": 1.4040123000158928,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
@@ -47,7 +47,7 @@
     "initial_graphs": {
       "graphs": {
         "Tensao": {
-          "seconds": 0.2612144000013359,
+          "seconds": 0.2858787999721244,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -57,7 +57,7 @@
           }
         },
         "Corrente": {
-          "seconds": 0.08270600001560524,
+          "seconds": 0.0846525999950245,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -67,7 +67,7 @@
           }
         },
         "Potencia Ativa": {
-          "seconds": 0.060333100031130016,
+          "seconds": 0.06352600001264364,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -77,7 +77,7 @@
           }
         },
         "Potencia Aparente": {
-          "seconds": 0.080855900014285,
+          "seconds": 0.06356189999496564,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -87,7 +87,7 @@
           }
         },
         "Fator de Potencia": {
-          "seconds": 0.057987599982880056,
+          "seconds": 0.06270650000078604,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -97,7 +97,7 @@
           }
         },
         "Deseq. Tensao": {
-          "seconds": 0.060325499973259866,
+          "seconds": 0.06282120000105351,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -107,7 +107,7 @@
           }
         },
         "Deseq. Corrente": {
-          "seconds": 0.05286769999656826,
+          "seconds": 0.056199599988758564,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -117,7 +117,7 @@
           }
         },
         "Consumo": {
-          "seconds": 0.04825089999940246,
+          "seconds": 0.05327090003993362,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -127,7 +127,7 @@
           }
         },
         "DHT Tensao": {
-          "seconds": 0.07207679998828098,
+          "seconds": 0.0815563999931328,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -137,7 +137,7 @@
           }
         },
         "DHT Corrente": {
-          "seconds": 0.07444870000472292,
+          "seconds": 0.08180470002116635,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -147,7 +147,7 @@
           }
         },
         "Tensao x Corrente": {
-          "seconds": 0.21293360000709072,
+          "seconds": 0.23394809995079413,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -157,7 +157,7 @@
           }
         },
         "kW x kVA": {
-          "seconds": 0.1786201000213623,
+          "seconds": 0.15785319998394698,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -170,7 +170,7 @@
       "graph_count": 12
     },
     "zoom_rebuild": {
-      "seconds": 0.7446105999988504,
+      "seconds": 0.833971299987752,
       "memory_start_mb": null,
       "memory_end_mb": null,
       "memory_delta_mb": null,
@@ -182,7 +182,7 @@
     "zoom_graphs": {
       "graphs": {
         "Tensao": {
-          "seconds": 0.07873529999051243,
+          "seconds": 0.08697529998607934,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -192,7 +192,7 @@
           }
         },
         "Corrente": {
-          "seconds": 0.0564316000090912,
+          "seconds": 0.06185080000432208,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -202,7 +202,7 @@
           }
         },
         "Potencia Ativa": {
-          "seconds": 0.043675399967469275,
+          "seconds": 0.0476807999657467,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -212,7 +212,7 @@
           }
         },
         "Potencia Aparente": {
-          "seconds": 0.04397840000456199,
+          "seconds": 0.046379600011277944,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -222,7 +222,7 @@
           }
         },
         "Fator de Potencia": {
-          "seconds": 0.038583100016694516,
+          "seconds": 0.04193050001049414,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -232,7 +232,7 @@
           }
         },
         "Deseq. Tensao": {
-          "seconds": 0.044053399993572384,
+          "seconds": 0.04512269998667762,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -242,7 +242,7 @@
           }
         },
         "Deseq. Corrente": {
-          "seconds": 0.038888300012331456,
+          "seconds": 0.04083989997161552,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -252,7 +252,7 @@
           }
         },
         "Consumo": {
-          "seconds": 0.03236860001925379,
+          "seconds": 0.06065540004055947,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -262,7 +262,7 @@
           }
         },
         "DHT Tensao": {
-          "seconds": 0.05422980000730604,
+          "seconds": 0.0567857000278309,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -272,7 +272,7 @@
           }
         },
         "DHT Corrente": {
-          "seconds": 0.05029470002045855,
+          "seconds": 0.05472569999983534,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -282,7 +282,7 @@
           }
         },
         "Tensao x Corrente": {
-          "seconds": 0.15415459999348968,
+          "seconds": 0.17418209998868406,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -292,7 +292,7 @@
           }
         },
         "kW x kVA": {
-          "seconds": 0.10642199998255819,
+          "seconds": 0.1136129000224173,
           "memory_start_mb": null,
           "memory_end_mb": null,
           "memory_delta_mb": null,
@@ -306,8 +306,8 @@
     }
   },
   "artifacts": {
-    "log": "docs\\benchmarks\\logs\\primata-xlsx-dtype-reuse.log",
-    "json": "docs\\benchmarks\\runs\\primata-xlsx-dtype-reuse.json",
-    "markdown": "docs\\benchmarks\\runs\\primata-xlsx-dtype-reuse.md"
+    "log": "docs\\benchmarks\\logs\\primata-txt-dtype-reuse.log",
+    "json": "docs\\benchmarks\\runs\\primata-txt-dtype-reuse.json",
+    "markdown": "docs\\benchmarks\\runs\\primata-txt-dtype-reuse.md"
   }
 }

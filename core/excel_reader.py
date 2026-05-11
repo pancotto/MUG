@@ -3,6 +3,7 @@ from datetime import time
 import math
 
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 
 from core.models import InputData, ProcessedData
 from core.profiling import profile_block, log_profile_event
@@ -135,6 +136,7 @@ def read_primata_excel(file_path: Path) -> pd.DataFrame:
     dataframe.columns = columns
 
     dataframe = dataframe.dropna(how="all")
+    dataframe = dataframe.infer_objects()
 
     dataframe = dataframe.loc[
         :,
@@ -590,7 +592,10 @@ def prepare_common_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
         if column in ["Data", "Hora ", "Datetime"]:
             continue
 
-        df[column] = parse_numeric_series(df[column])
+        if is_numeric_dtype(df[column]):
+            df[column] = pd.to_numeric(df[column], errors="coerce").fillna(0)
+        else:
+            df[column] = parse_numeric_series(df[column])
 
     return df
 
