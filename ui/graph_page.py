@@ -37,7 +37,6 @@ from core.graph_builder import (
     create_combined_kwxkva_graph,
 )
 from core.models import ProcessedData
-from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
 from core.profiling import profile_block, log_profile_event
 from ui.about_dialog import AboutDialog
 
@@ -86,6 +85,22 @@ DEFAULT_PDF_GRAPHS = {
     "DHT Tensão",
     "DHT Corrente",
 }
+
+
+GRAPH_EXPORT_ORDER = [
+    "Tensão",
+    "Corrente",
+    "Potência Ativa",
+    "Potência Aparente",
+    "Fator de Potência",
+    "DHT Tensão",
+    "DHT Corrente",
+    "Deseq. Tensão",
+    "Deseq. Corrente",
+    "Consumo",
+    "Tensão x Corrente",
+    "kW x kVA",
+]
 
 
 
@@ -370,6 +385,8 @@ class PdfExportWorker(QObject):
     @Slot()
     def run(self):
         try:
+            from core.pdf_exporter import export_figures_to_pdf
+
             pdf_path = export_figures_to_pdf(
                 processed=self.processed,
                 selected_graphs=self.selected_graphs,
