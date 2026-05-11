@@ -5,7 +5,6 @@ from PySide6.QtWidgets import QMainWindow, QStackedWidget, QMessageBox
 
 from ui.input_page import InputPage
 from ui.graph_page import GraphPage, get_app_version
-from core.update_checker import UpdateChecker
 from ui.about_dialog import AboutDialog
 
 
@@ -142,6 +141,8 @@ class MainWindow(QMainWindow):
     def check_for_updates(self):
 
         try:
+            from core.update_checker import UpdateChecker
+
 
             current_version = get_app_version()
 
