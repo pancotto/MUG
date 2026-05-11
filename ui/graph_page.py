@@ -38,6 +38,7 @@ from core.graph_builder import (
 )
 from core.models import ProcessedData
 from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
+from core.profiling import profile_block, log_profile_event
 from ui.about_dialog import AboutDialog
 
 
@@ -997,22 +998,23 @@ class GraphPage(QWidget):
             return html.replace("</body>", extra_js + "</body>")
 
     def _render_webview_figure(self, tab_name: str, fig: go.Figure):
-        html = self._build_html_with_zoom_sync(fig, tab_name)
+        with profile_block("Plotly render webview", graph=tab_name):
+            html = self._build_html_with_zoom_sync(fig, tab_name)
 
-        temp_file = Path(tempfile.gettempdir()) / (
-            f"plot_{tab_name.replace(' ', '_').replace('.', '').replace('/', '_')}.html"
-        )
+            temp_file = Path(tempfile.gettempdir()) / (
+                f"plot_{tab_name.replace(' ', '_').replace('.', '').replace('/', '_')}.html"
+            )
 
-        with open(temp_file, "w", encoding="utf-8") as f:
-            f.write(html)
+            with open(temp_file, "w", encoding="utf-8") as f:
+                f.write(html)
 
-        webview = self.webviews[tab_name]
+            webview = self.webviews[tab_name]
 
-        channel = QWebChannel(webview.page())
-        channel.registerObject("plotBridge", self.plot_bridge)
-        webview.page().setWebChannel(channel)
+            channel = QWebChannel(webview.page())
+            channel.registerObject("plotBridge", self.plot_bridge)
+            webview.page().setWebChannel(channel)
 
-        webview.load(QUrl.fromLocalFile(str(temp_file)))
+            webview.load(QUrl.fromLocalFile(str(temp_file)))
 
     def _apply_interface_visual_standard(
         self,
@@ -1037,55 +1039,67 @@ class GraphPage(QWidget):
         return fig
 
     def _rebuild_figures_for_range(self, processed: ProcessedData, x_min=None, x_max=None):
-        df = processed.dataframe.copy()
-        df["Datetime"] = pd.to_datetime(df["Datetime"])
-
         zoom_mode = x_min is not None and x_max is not None
 
-        if zoom_mode:
-            x_min = pd.to_datetime(x_min)
-            x_max = pd.to_datetime(x_max)
-            df = df[(df["Datetime"] >= x_min) & (df["Datetime"] <= x_max)].copy()
+        with profile_block("Graph rebuild", zoom=zoom_mode):
+            df = processed.dataframe.copy()
+            df["Datetime"] = pd.to_datetime(df["Datetime"])
 
-        filtered_processed = ProcessedData(
-            company=processed.company,
-            city=processed.city,
-            trafo=processed.trafo,
-            local=processed.local,
-            revision=processed.revision,
-            excel_path=processed.excel_path,
-            dataframe=df,
-            integration_time=processed.integration_time,
-            tension=processed.tension,
-            equipment_type=processed.equipment_type,
-            equipment_reference=processed.equipment_reference,
-            equipment_value=processed.equipment_value,
-        )
+            if zoom_mode:
+                x_min = pd.to_datetime(x_min)
+                x_max = pd.to_datetime(x_max)
+                df = df[(df["Datetime"] >= x_min) & (df["Datetime"] <= x_max)].copy()
 
-        figures = {
-            "Tensão": create_tension_graph(filtered_processed, show_logo=False),
-            "Corrente": create_current_graph(filtered_processed, show_logo=False),
-            "Potência Ativa": create_active_power_graph(filtered_processed, show_logo=False),
-            "Potência Aparente": create_apparent_power_graph(filtered_processed, show_logo=False),
-            "Fator de Potência": create_pf_graph(filtered_processed, show_logo=False),
-            "Deseq. Tensão": create_tension_imbalance_graph(filtered_processed, show_logo=False),
-            "Deseq. Corrente": create_current_imbalance_graph(filtered_processed, show_logo=False),
-            "Consumo": create_consumption_graph(filtered_processed, show_logo=False),
-            "DHT Tensão": create_dht_voltage_graph(filtered_processed, show_logo=False),
-            "DHT Corrente": create_dht_current_graph(filtered_processed, show_logo=False),
-            "Tensão x Corrente": create_combined_vxi_graph(filtered_processed, show_logo=False),
-            "kW x kVA": create_combined_kwxkva_graph(filtered_processed, show_logo=False),
-        }
-
-        for name, fig in figures.items():
-            figures[name] = self._apply_interface_visual_standard(
-                graph_name=name,
-                fig=fig,
-                dataframe=df,
-                zoom_mode=zoom_mode,
+            log_profile_event(
+                "Graph rebuild dataframe",
+                zoom=zoom_mode,
+                rows=len(df),
+                columns=len(df.columns),
             )
 
-        return figures, df
+            filtered_processed = ProcessedData(
+                company=processed.company,
+                city=processed.city,
+                trafo=processed.trafo,
+                local=processed.local,
+                revision=processed.revision,
+                excel_path=processed.excel_path,
+                dataframe=df,
+                integration_time=processed.integration_time,
+                tension=processed.tension,
+                equipment_type=processed.equipment_type,
+                equipment_reference=processed.equipment_reference,
+                equipment_value=processed.equipment_value,
+            )
+
+            builders = [
+                ("Tensão", create_tension_graph),
+                ("Corrente", create_current_graph),
+                ("Potência Ativa", create_active_power_graph),
+                ("Potência Aparente", create_apparent_power_graph),
+                ("Fator de Potência", create_pf_graph),
+                ("Deseq. Tensão", create_tension_imbalance_graph),
+                ("Deseq. Corrente", create_current_imbalance_graph),
+                ("Consumo", create_consumption_graph),
+                ("DHT Tensão", create_dht_voltage_graph),
+                ("DHT Corrente", create_dht_current_graph),
+                ("Tensão x Corrente", create_combined_vxi_graph),
+                ("kW x kVA", create_combined_kwxkva_graph),
+            ]
+
+            figures = {}
+
+            for name, builder in builders:
+                with profile_block("Graph build", graph=name, zoom=zoom_mode, rows=len(df)):
+                    fig = builder(filtered_processed, show_logo=False)
+                    figures[name] = self._apply_interface_visual_standard(
+                        graph_name=name,
+                        fig=fig,
+                        dataframe=df,
+                        zoom_mode=zoom_mode,
+                    )
+
+            return figures, df
 
     def _on_zoom_changed(self, source_name, x_min_str, x_max_str):
         if self.syncing_zoom:
@@ -1097,39 +1111,40 @@ class GraphPage(QWidget):
         self.syncing_zoom = True
 
         try:
-            if x_min_str == "__FULL_VIEW__" or x_max_str == "__FULL_VIEW__":
-                self.current_x_min = None
-                self.current_x_max = None
+            with profile_block("Zoom rebuild total", source=source_name):
+                if x_min_str == "__FULL_VIEW__" or x_max_str == "__FULL_VIEW__":
+                    self.current_x_min = None
+                    self.current_x_max = None
+
+                    figures, df = self._rebuild_figures_for_range(
+                        self.current_processed,
+                        None,
+                        None,
+                    )
+
+                    self.current_figures = figures
+
+                    for tab_name, fig in figures.items():
+                        self._render_webview_figure(tab_name, fig)
+
+                    return
+
+                x_min = pd.to_datetime(x_min_str)
+                x_max = pd.to_datetime(x_max_str)
+
+                self.current_x_min = x_min
+                self.current_x_max = x_max
 
                 figures, df = self._rebuild_figures_for_range(
                     self.current_processed,
-                    None,
-                    None,
+                    x_min,
+                    x_max,
                 )
 
                 self.current_figures = figures
 
                 for tab_name, fig in figures.items():
                     self._render_webview_figure(tab_name, fig)
-
-                return
-
-            x_min = pd.to_datetime(x_min_str)
-            x_max = pd.to_datetime(x_max_str)
-
-            self.current_x_min = x_min
-            self.current_x_max = x_max
-
-            figures, df = self._rebuild_figures_for_range(
-                self.current_processed,
-                x_min,
-                x_max,
-            )
-
-            self.current_figures = figures
-
-            for tab_name, fig in figures.items():
-                self._render_webview_figure(tab_name, fig)
 
         except Exception as e:
             QMessageBox.critical(
@@ -1160,11 +1175,16 @@ class GraphPage(QWidget):
             self.current_x_max = None
 
             try:
-                figures, df = self._rebuild_figures_for_range(processed, None, None)
-                self.current_figures = figures
+                with profile_block(
+                    "Initial graph generation and render",
+                    rows=len(processed.dataframe),
+                    columns=len(processed.dataframe.columns),
+                ):
+                    figures, df = self._rebuild_figures_for_range(processed, None, None)
+                    self.current_figures = figures
 
-                for tab_name, fig in figures.items():
-                    self._render_webview_figure(tab_name, fig)
+                    for tab_name, fig in figures.items():
+                        self._render_webview_figure(tab_name, fig)
 
             except Exception as e:
                 QMessageBox.critical(

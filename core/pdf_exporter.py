@@ -25,6 +25,7 @@ from core.graph_builder import (
     create_combined_vxi_graph,
     create_combined_kwxkva_graph,
 )
+from core.profiling import profile_block, log_profile_event
 
 
 GRAPH_EXPORT_ORDER = [
@@ -381,73 +382,81 @@ def build_pdf_figures(processed, zoom_mode: bool = False, selected_graphs: list[
     """
     selected_set = set(selected_graphs or GRAPH_EXPORT_ORDER)
 
-    builders = {
-        "Tensão": lambda: create_tension_graph(processed, show_logo=True),
-        "Corrente": lambda: create_current_graph(processed, show_logo=True),
-        "Potência Ativa": lambda: create_active_power_graph(processed, show_logo=True),
-        "Potência Aparente": lambda: create_apparent_power_graph(processed, show_logo=True),
-        "Fator de Potência": lambda: create_pf_graph(processed, show_logo=True),
-        "Deseq. Tensão": lambda: create_tension_imbalance_graph(processed, show_logo=True),
-        "Deseq. Corrente": lambda: create_current_imbalance_graph(processed, show_logo=True),
-        "Consumo": lambda: create_consumption_graph(processed, show_logo=True),
-        "DHT Tensão": lambda: create_dht_voltage_graph(processed, show_logo=True),
-        "DHT Corrente": lambda: create_dht_current_graph(processed, show_logo=True),
-        "Tensão x Corrente": lambda: create_combined_vxi_graph(processed, show_logo=True),
-        "kW x kVA": lambda: create_combined_kwxkva_graph(processed, show_logo=True),
-    }
+    with profile_block(
+        "PDF build figures",
+        selected=len(selected_set),
+        zoom=zoom_mode,
+        rows=len(processed.dataframe),
+    ):
+        builders = {
+            "Tensão": lambda: create_tension_graph(processed, show_logo=True),
+            "Corrente": lambda: create_current_graph(processed, show_logo=True),
+            "Potência Ativa": lambda: create_active_power_graph(processed, show_logo=True),
+            "Potência Aparente": lambda: create_apparent_power_graph(processed, show_logo=True),
+            "Fator de Potência": lambda: create_pf_graph(processed, show_logo=True),
+            "Deseq. Tensão": lambda: create_tension_imbalance_graph(processed, show_logo=True),
+            "Deseq. Corrente": lambda: create_current_imbalance_graph(processed, show_logo=True),
+            "Consumo": lambda: create_consumption_graph(processed, show_logo=True),
+            "DHT Tensão": lambda: create_dht_voltage_graph(processed, show_logo=True),
+            "DHT Corrente": lambda: create_dht_current_graph(processed, show_logo=True),
+            "Tensão x Corrente": lambda: create_combined_vxi_graph(processed, show_logo=True),
+            "kW x kVA": lambda: create_combined_kwxkva_graph(processed, show_logo=True),
+        }
 
-    figures = {}
+        figures = {}
 
-    for graph_name in GRAPH_EXPORT_ORDER:
-        if graph_name not in selected_set:
-            continue
+        for graph_name in GRAPH_EXPORT_ORDER:
+            if graph_name not in selected_set:
+                continue
 
-        builder = builders.get(graph_name)
-        if builder is None:
-            continue
+            builder = builders.get(graph_name)
+            if builder is None:
+                continue
 
-        fig = builder()
-        figures[graph_name] = apply_pdf_visual_standard(
-            graph_name=graph_name,
-            fig=fig,
-            processed=processed,
-            zoom_mode=zoom_mode,
-        )
+            with profile_block("PDF graph build", graph=graph_name, zoom=zoom_mode):
+                fig = builder()
+                figures[graph_name] = apply_pdf_visual_standard(
+                    graph_name=graph_name,
+                    fig=fig,
+                    processed=processed,
+                    zoom_mode=zoom_mode,
+                )
 
-    return figures
+        return figures
 
 
-def save_figure_as_jpeg(fig, output_path: Path) -> Path:
-    embedded_browser = configure_kaleido_browser_path()
+def save_figure_as_jpeg(fig, output_path: Path, graph_name: str | None = None) -> Path:
+    with profile_block("PDF graph image render", graph=graph_name):
+        embedded_browser = configure_kaleido_browser_path()
 
-    try:
-        image_stream = io.BytesIO(
-            to_image(fig, format="png", width=1250, height=884, scale=1.35)
-        )
-    except Exception as exc:
-        browser_info = (
-            f"Navegador portátil localizado em: {embedded_browser}"
-            if embedded_browser is not None
-            else "Nenhum navegador portátil foi localizado junto com o MUG."
-        )
+        try:
+            image_stream = io.BytesIO(
+                to_image(fig, format="png", width=1250, height=884, scale=1.35)
+            )
+        except Exception as exc:
+            browser_info = (
+                f"Navegador portátil localizado em: {embedded_browser}"
+                if embedded_browser is not None
+                else "Nenhum navegador portátil foi localizado junto com o MUG."
+            )
 
-        raise RuntimeError(
-            "Falha ao renderizar o gráfico para exportação em PDF. "
-            "O MUG utiliza Plotly/Kaleido para converter os gráficos em imagens. "
-            f"{browser_info} "
-            "Se esta versão ainda não estiver com Chromium portátil empacotado, "
-            "será necessário usar uma instalação funcional do Google Chrome/Chromium "
-            "na máquina do cliente."
-        ) from exc
+            raise RuntimeError(
+                "Falha ao renderizar o gráfico para exportação em PDF. "
+                "O MUG utiliza Plotly/Kaleido para converter os gráficos em imagens. "
+                f"{browser_info} "
+                "Se esta versão ainda não estiver com Chromium portátil empacotado, "
+                "será necessário usar uma instalação funcional do Google Chrome/Chromium "
+                "na máquina do cliente."
+            ) from exc
 
-    image_stream.seek(0)
+        image_stream.seek(0)
 
-    image = Image.open(image_stream)
-    if image.mode == "RGBA":
-        image = image.convert("RGB")
+        image = Image.open(image_stream)
+        if image.mode == "RGBA":
+            image = image.convert("RGB")
 
-    image.save(output_path, "JPEG")
-    return output_path
+        image.save(output_path, "JPEG")
+        return output_path
 
 
 def build_pdf_filename(company: str, revision: str) -> str:
@@ -462,57 +471,67 @@ def export_figures_to_pdf(
     output_dir: Path,
     zoom_mode: bool = False,
 ) -> Path:
-    output_dir.mkdir(parents=True, exist_ok=True)
+    with profile_block(
+        "PDF export total",
+        selected=len(selected_graphs),
+        zoom=zoom_mode,
+        rows=len(processed.dataframe),
+    ):
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    pdf = FPDF(orientation="L", unit="mm", format="A4")
+        pdf = FPDF(orientation="L", unit="mm", format="A4")
 
-    temp_dir = Path(tempfile.mkdtemp(prefix="graphs_pdf_"))
-    temp_images: list[Path] = []
+        temp_dir = Path(tempfile.mkdtemp(prefix="graphs_pdf_"))
+        temp_images: list[Path] = []
 
-    try:
-        figures = build_pdf_figures(processed, zoom_mode=zoom_mode, selected_graphs=selected_graphs)
+        try:
+            figures = build_pdf_figures(processed, zoom_mode=zoom_mode, selected_graphs=selected_graphs)
 
-        usable_width = A4_LANDSCAPE_WIDTH_MM - (LEFT_MARGIN_MM + RIGHT_MARGIN_MM)
-        usable_height = A4_LANDSCAPE_HEIGHT_MM - (TOP_MARGIN_MM + BOTTOM_MARGIN_MM)
+            usable_width = A4_LANDSCAPE_WIDTH_MM - (LEFT_MARGIN_MM + RIGHT_MARGIN_MM)
+            usable_height = A4_LANDSCAPE_HEIGHT_MM - (TOP_MARGIN_MM + BOTTOM_MARGIN_MM)
 
-        for graph_name in GRAPH_EXPORT_ORDER:
-            if graph_name not in selected_graphs:
-                continue
+            for graph_name in GRAPH_EXPORT_ORDER:
+                if graph_name not in selected_graphs:
+                    continue
 
-            fig = figures.get(graph_name)
-            if fig is None:
-                continue
+                fig = figures.get(graph_name)
+                if fig is None:
+                    continue
 
-            temp_image_path = temp_dir / f"{graph_name.replace(' ', '_')}.jpg"
-            save_figure_as_jpeg(fig, temp_image_path)
-            temp_images.append(temp_image_path)
+                with profile_block("PDF graph export page", graph=graph_name):
+                    temp_image_path = temp_dir / f"{graph_name.replace(' ', '_')}.jpg"
+                    save_figure_as_jpeg(fig, temp_image_path, graph_name=graph_name)
+                    temp_images.append(temp_image_path)
 
-            pdf.add_page()
+                    pdf.add_page()
 
-            pdf.image(
-                str(temp_image_path),
-                x=LEFT_MARGIN_MM,
-                y=TOP_MARGIN_MM,
-                w=usable_width,
-                h=usable_height,
-            )
+                    pdf.image(
+                        str(temp_image_path),
+                        x=LEFT_MARGIN_MM,
+                        y=TOP_MARGIN_MM,
+                        w=usable_width,
+                        h=usable_height,
+                    )
 
-        if not temp_images:
-            raise ValueError("Nenhum gráfico foi selecionado para exportação.")
+            if not temp_images:
+                raise ValueError("Nenhum gráfico foi selecionado para exportação.")
 
-        pdf_filename = build_pdf_filename(processed.company, processed.revision)
-        pdf_path = output_dir / pdf_filename
-        pdf.output(str(pdf_path))
+            pdf_filename = build_pdf_filename(processed.company, processed.revision)
+            pdf_path = output_dir / pdf_filename
 
-        return pdf_path
+            with profile_block("PDF file write", pages=len(temp_images), file=pdf_filename):
+                pdf.output(str(pdf_path))
 
-    finally:
-        for image_path in temp_images:
-            if image_path.exists():
-                image_path.unlink(missing_ok=True)
+            log_profile_event("PDF export complete", file=pdf_path)
+            return pdf_path
 
-        if temp_dir.exists():
-            try:
-                temp_dir.rmdir()
-            except OSError:
-                pass
+        finally:
+            for image_path in temp_images:
+                if image_path.exists():
+                    image_path.unlink(missing_ok=True)
+
+            if temp_dir.exists():
+                try:
+                    temp_dir.rmdir()
+                except OSError:
+                    pass

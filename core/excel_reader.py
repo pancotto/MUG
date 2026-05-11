@@ -5,6 +5,7 @@ import math
 import pandas as pd
 
 from core.models import InputData, ProcessedData
+from core.profiling import profile_block, log_profile_event
 
 
 PRIMATA_HEADER_FIRST_COLUMN = "Data"
@@ -26,52 +27,76 @@ def process_input_data(input_data: InputData) -> ProcessedData:
     file_path = Path(input_data.excel_path)
     suffix = file_path.suffix.lower()
 
-    if suffix == ".xlsx":
-        dataframe = read_primata_excel(file_path)
+    with profile_block("ETL total", file=file_path.name, suffix=suffix):
+        if suffix == ".xlsx":
+            with profile_block("ETL read Primata XLSX", file=file_path.name):
+                dataframe = read_primata_excel(file_path)
+            source_type = "primata_xlsx"
 
-    elif suffix == ".txt":
-        txt_type = detect_txt_type(file_path)
+        elif suffix == ".txt":
+            with profile_block("ETL detect TXT type", file=file_path.name):
+                txt_type = detect_txt_type(file_path)
 
-        if txt_type == "primata":
-            dataframe = read_primata_txt(file_path)
-        elif txt_type == "embrasul":
-            dataframe = read_embrasul_txt_as_primata_dataframe(file_path)
+            if txt_type == "primata":
+                with profile_block("ETL read Primata TXT", file=file_path.name):
+                    dataframe = read_primata_txt(file_path)
+            elif txt_type == "embrasul":
+                with profile_block("ETL read Embrasul TXT", file=file_path.name):
+                    dataframe = read_embrasul_txt_as_primata_dataframe(file_path)
+            else:
+                raise ValueError("Não foi possível identificar se o arquivo TXT é Primata ou Embrasul.")
+            source_type = txt_type
+
         else:
-            raise ValueError("Não foi possível identificar se o arquivo TXT é Primata ou Embrasul.")
+            raise ValueError("Formato de arquivo não suportado. Utilize .xlsx ou .txt.")
 
-    else:
-        raise ValueError("Formato de arquivo não suportado. Utilize .xlsx ou .txt.")
+        log_profile_event(
+            "ETL raw dataframe",
+            source=source_type,
+            rows=len(dataframe),
+            columns=len(dataframe.columns),
+        )
 
-    dataframe = prepare_common_dataframe(dataframe)
+        with profile_block("ETL prepare common dataframe", source=source_type):
+            dataframe = prepare_common_dataframe(dataframe)
 
-    integration_time = infer_integration_time(dataframe)
-    tension = infer_nominal_tension(dataframe)
+        with profile_block("ETL infer metadata", rows=len(dataframe), columns=len(dataframe.columns)):
+            integration_time = infer_integration_time(dataframe)
+            tension = infer_nominal_tension(dataframe)
 
-    equipment_type = input_data.equipment_type
-    equipment_reference = input_data.equipment_reference
-    equipment_value = float(input_data.equipment_value)
+        equipment_type = input_data.equipment_type
+        equipment_reference = input_data.equipment_reference
+        equipment_value = float(input_data.equipment_value)
 
-    if equipment_type == "DISJUNTOR":
-        # Potência aparente equivalente em kVA para manter compatibilidade
-        # com gráficos que usam referência de potência nominal.
-        nominal_power_kva = (float(tension) * equipment_value * math.sqrt(3)) / 1000
-    else:
-        nominal_power_kva = equipment_value
+        if equipment_type == "DISJUNTOR":
+            # Potência aparente equivalente em kVA para manter compatibilidade
+            # com gráficos que usam referência de potência nominal.
+            nominal_power_kva = (float(tension) * equipment_value * math.sqrt(3)) / 1000
+        else:
+            nominal_power_kva = equipment_value
 
-    return ProcessedData(
-        company=input_data.company,
-        city=input_data.city,
-        trafo=nominal_power_kva,
-        local=input_data.local,
-        revision=input_data.revision,
-        excel_path=file_path,
-        dataframe=dataframe,
-        integration_time=integration_time,
-        tension=tension,
-        equipment_type=equipment_type,
-        equipment_reference=equipment_reference,
-        equipment_value=equipment_value,
-    )
+        log_profile_event(
+            "ETL processed dataframe",
+            rows=len(dataframe),
+            columns=len(dataframe.columns),
+            integration_time=integration_time,
+            tension=tension,
+        )
+
+        return ProcessedData(
+            company=input_data.company,
+            city=input_data.city,
+            trafo=nominal_power_kva,
+            local=input_data.local,
+            revision=input_data.revision,
+            excel_path=file_path,
+            dataframe=dataframe,
+            integration_time=integration_time,
+            tension=tension,
+            equipment_type=equipment_type,
+            equipment_reference=equipment_reference,
+            equipment_value=equipment_value,
+        )
 
 
 def read_primata_excel(file_path: Path) -> pd.DataFrame:
