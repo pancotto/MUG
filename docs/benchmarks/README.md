@@ -29,5 +29,8 @@ Generated files:
 - `logs/*.log`: benchmark and profiling logs.
 - `artifacts/*`: generated PDFs and other benchmark artifacts.
 
+Generated benchmark files are intentionally ignored by Git. Official release
+benchmark snapshots should be saved under `docs/benchmarks/releases/`.
+
 The benchmark uses real project code and intentionally does not optimize or
 change application behavior.

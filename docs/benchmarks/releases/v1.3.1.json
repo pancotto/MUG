@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "release": "v1.3.1",
+  "created_at": "2026-05-11T21:03:41",
+  "notes": "Official consolidated benchmark snapshot for MUG v1.3.1. Temporary run files and real datasets are intentionally not versioned.",
+  "environment": {
+    "python": "3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]",
+    "platform": "win32",
+    "executable": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\.venv\\Scripts\\python.exe"
+  },
+  "runs": [
+    {
+      "run_id": "v1.3.1-primata-xlsx",
+      "dataset": "benchmarks\\datasets\\primata.xlsx",
+      "suffix": ".xlsx",
+      "rows": 33603,
+      "columns": 65,
+      "startup_seconds": 1.498,
+      "etl_seconds": 9.756,
+      "initial_graph_generation_seconds": 1.377,
+      "zoom_rebuild_seconds": 0.735,
+      "pdf_export_seconds": null,
+      "pdf_graph_count": null,
+      "pdf_avg_image_seconds": null,
+      "source_json": "docs/benchmarks/runs/v1.3.1-primata-xlsx.json"
+    },
+    {
+      "run_id": "v1.3.1-primata-txt",
+      "dataset": "benchmarks\\datasets\\primata.txt",
+      "suffix": ".txt",
+      "rows": 33603,
+      "columns": 65,
+      "startup_seconds": 0.901,
+      "etl_seconds": 2.02,
+      "initial_graph_generation_seconds": 1.345,
+      "zoom_rebuild_seconds": 0.808,
+      "pdf_export_seconds": null,
+      "pdf_graph_count": null,
+      "pdf_avg_image_seconds": null,
+      "source_json": "docs/benchmarks/runs/v1.3.1-primata-txt.json"
+    },
+    {
+      "run_id": "v1.3.1-embrasul",
+      "dataset": "benchmarks\\datasets\\embrasul.txt",
+      "suffix": ".txt",
+      "rows": 15044,
+      "columns": 71,
+      "startup_seconds": 0.812,
+      "etl_seconds": 0.653,
+      "initial_graph_generation_seconds": 1.057,
+      "zoom_rebuild_seconds": 0.647,
+      "pdf_export_seconds": 95.127,
+      "pdf_graph_count": 12,
+      "pdf_avg_image_seconds": 7.815,
+      "source_json": "docs/benchmarks/runs/v1.3.1-embrasul.json"
+    }
+  ]
+}

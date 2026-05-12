@@ -41,7 +41,7 @@ from core.profiling import profile_block, log_profile_event
 from ui.about_dialog import AboutDialog
 
 
-APP_VERSION_FALLBACK = "1.3.0"
+APP_VERSION_FALLBACK = "1.3.1"
 
 
 def get_app_version() -> str:

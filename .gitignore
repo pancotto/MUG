@@ -42,6 +42,21 @@ browser/
 *.log
 
 # =========================
+# Benchmark generated artifacts
+# =========================
+docs/benchmarks/latest.*
+docs/benchmarks/runs/
+docs/benchmarks/logs/
+docs/benchmarks/artifacts/
+
+# =========================
+# Benchmark real datasets
+# =========================
+benchmarks/datasets/*
+!benchmarks/datasets/.gitkeep
+!benchmarks/datasets/README.md
+
+# =========================
 # OS files
 # =========================
 .DS_Store

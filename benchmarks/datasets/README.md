@@ -1,6 +1,9 @@
 # Benchmark Datasets
 
 Place representative real or anonymized MUG input files in this directory.
+Real datasets must remain outside Git. Keep only this README and `.gitkeep`
+versioned unless a future dataset is explicitly anonymized and approved for
+publication.
 
 The benchmark runner automatically searches for datasets in this order:
 
