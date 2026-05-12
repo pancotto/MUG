@@ -25,6 +25,7 @@ from core.graph_builder import (
     create_combined_vxi_graph,
     create_combined_kwxkva_graph,
 )
+from core.phase_sync import apply_phase_visibility_to_figure, update_phase_extreme_traces
 from core.profiling import profile_block, log_profile_event
 
 
@@ -373,7 +374,12 @@ def apply_pdf_visual_standard(graph_name: str, fig: go.Figure, processed, zoom_m
     return fig
 
 
-def build_pdf_figures(processed, zoom_mode: bool = False, selected_graphs: list[str] | None = None) -> dict[str, object]:
+def build_pdf_figures(
+    processed,
+    zoom_mode: bool = False,
+    selected_graphs: list[str] | None = None,
+    phase_visibility: dict[str, bool] | None = None,
+) -> dict[str, object]:
     """
     Monta apenas os gráficos necessários para o PDF.
 
@@ -415,12 +421,19 @@ def build_pdf_figures(processed, zoom_mode: bool = False, selected_graphs: list[
 
             with profile_block("PDF graph build", graph=graph_name, zoom=zoom_mode):
                 fig = builder()
-                figures[graph_name] = apply_pdf_visual_standard(
+                fig = apply_pdf_visual_standard(
                     graph_name=graph_name,
                     fig=fig,
                     processed=processed,
                     zoom_mode=zoom_mode,
                 )
+                apply_phase_visibility_to_figure(
+                    fig=fig,
+                    graph_name=graph_name,
+                    phase_visibility=phase_visibility,
+                )
+                update_phase_extreme_traces(fig, graph_name)
+                figures[graph_name] = fig
 
         return figures
 
@@ -470,6 +483,7 @@ def export_figures_to_pdf(
     selected_graphs: list[str],
     output_dir: Path,
     zoom_mode: bool = False,
+    phase_visibility: dict[str, bool] | None = None,
 ) -> Path:
     with profile_block(
         "PDF export total",
@@ -485,7 +499,12 @@ def export_figures_to_pdf(
         temp_images: list[Path] = []
 
         try:
-            figures = build_pdf_figures(processed, zoom_mode=zoom_mode, selected_graphs=selected_graphs)
+            figures = build_pdf_figures(
+                processed,
+                zoom_mode=zoom_mode,
+                selected_graphs=selected_graphs,
+                phase_visibility=phase_visibility,
+            )
 
             usable_width = A4_LANDSCAPE_WIDTH_MM - (LEFT_MARGIN_MM + RIGHT_MARGIN_MM)
             usable_height = A4_LANDSCAPE_HEIGHT_MM - (TOP_MARGIN_MM + BOTTOM_MARGIN_MM)

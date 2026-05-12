@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import tempfile
+import json
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -37,11 +38,21 @@ from core.graph_builder import (
     create_combined_kwxkva_graph,
 )
 from core.models import ProcessedData
+from core.phase_sync import (
+    apply_phase_visibility_to_figure,
+    default_phase_visibility,
+    get_current_extreme_marker_updates,
+    get_phase_trace_updates,
+    get_sync_trace_names,
+    get_trace_phase,
+    is_phase_sync_graph,
+    update_phase_extreme_traces,
+)
 from core.profiling import profile_block, log_profile_event
 from ui.about_dialog import AboutDialog
 
 
-APP_VERSION_FALLBACK = "1.3.1"
+APP_VERSION_FALLBACK = "1.3.2"
 
 
 def get_app_version() -> str:
@@ -365,22 +376,28 @@ def apply_zoom_y_autorange(fig: go.Figure):
 
 class PlotBridge(QObject):
     zoomChanged = Signal(str, str, str)
+    phaseLegendToggled = Signal(str, str, bool)
 
     @Slot(str, str, str)
     def onZoomChanged(self, source_name, x_min, x_max):
         self.zoomChanged.emit(source_name, x_min, x_max)
+
+    @Slot(str, str, bool)
+    def onPhaseLegendToggled(self, source_name, trace_name, visible):
+        self.phaseLegendToggled.emit(source_name, trace_name, visible)
 
 
 class PdfExportWorker(QObject):
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, processed, selected_graphs, output_dir, zoom_mode):
+    def __init__(self, processed, selected_graphs, output_dir, zoom_mode, phase_visibility=None):
         super().__init__()
         self.processed = processed
         self.selected_graphs = selected_graphs
         self.output_dir = output_dir
         self.zoom_mode = zoom_mode
+        self.phase_visibility = phase_visibility
 
     @Slot()
     def run(self):
@@ -392,6 +409,7 @@ class PdfExportWorker(QObject):
                 selected_graphs=self.selected_graphs,
                 output_dir=self.output_dir,
                 zoom_mode=self.zoom_mode,
+                phase_visibility=self.phase_visibility,
             )
             self.finished.emit(str(pdf_path))
         except Exception as exc:
@@ -707,6 +725,7 @@ class PdfExportTab(QWidget):
                 selected_graphs=selected_graphs,
                 output_dir=Path(output_dir),
                 zoom_mode=zoom_mode,
+                phase_visibility=self.graph_page.phase_visibility.copy(),
             )
             self._pdf_worker.moveToThread(self._pdf_thread)
 
@@ -760,9 +779,11 @@ class GraphPage(QWidget):
         self.syncing_zoom = False
         self.current_x_min = None
         self.current_x_max = None
+        self.phase_visibility = default_phase_visibility()
 
         self.plot_bridge = PlotBridge()
         self.plot_bridge.zoomChanged.connect(self._on_zoom_changed)
+        self.plot_bridge.phaseLegendToggled.connect(self._on_phase_legend_toggled)
 
         self._build_ui()
 
@@ -964,11 +985,14 @@ class GraphPage(QWidget):
 
     def _build_html_with_zoom_sync(self, fig: go.Figure, source_name: str):
             html = fig.to_html(full_html=True, include_plotlyjs=True, div_id="plot")
+            sync_trace_names = json.dumps(get_sync_trace_names(source_name), ensure_ascii=False)
 
             extra_js = f"""
             <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
             <script>
             (function() {{
+                var syncTraceNames = new Set({sync_trace_names});
+
                 function attachZoomHandler() {{
                     if (typeof qt === 'undefined' || !qt.webChannelTransport) {{
                         setTimeout(attachZoomHandler, 100);
@@ -983,6 +1007,11 @@ class GraphPage(QWidget):
                             setTimeout(attachZoomHandler, 100);
                             return;
                         }}
+
+                        if (plot.__mugPhaseSyncAttached) {{
+                            return;
+                        }}
+                        plot.__mugPhaseSyncAttached = true;
 
                         plot.on('plotly_relayout', function(eventdata) {{
                             if (!eventdata) return;
@@ -1001,6 +1030,30 @@ class GraphPage(QWidget):
                                     "__FULL_VIEW__"
                                 );
                             }}
+                        }});
+
+                        plot.on('plotly_legendclick', function(eventdata) {{
+                            if (!eventdata || eventdata.curveNumber === undefined) return true;
+
+                            var trace = plot.data[eventdata.curveNumber];
+                            if (!trace || !syncTraceNames.has(trace.name)) return true;
+
+                            var currentlyVisible = trace.visible !== 'legendonly' && trace.visible !== false;
+                            window.plotBridge.onPhaseLegendToggled(
+                                "{source_name}",
+                                trace.name,
+                                !currentlyVisible
+                            );
+                            return false;
+                        }});
+
+                        plot.on('plotly_legenddoubleclick', function(eventdata) {{
+                            if (!eventdata || eventdata.curveNumber === undefined) return true;
+
+                            var trace = plot.data[eventdata.curveNumber];
+                            if (!trace || !syncTraceNames.has(trace.name)) return true;
+
+                            return false;
                         }});
                     }});
                 }}
@@ -1032,6 +1085,98 @@ class GraphPage(QWidget):
             webview.page().setWebChannel(channel)
 
             webview.load(QUrl.fromLocalFile(str(temp_file)))
+
+    def _apply_phase_visibility_to_figures(self, figures: dict[str, go.Figure]):
+        for graph_name, fig in figures.items():
+            apply_phase_visibility_to_figure(
+                fig=fig,
+                graph_name=graph_name,
+                phase_visibility=self.phase_visibility,
+            )
+            update_phase_extreme_traces(fig, graph_name)
+
+    def _sync_phase_visibility_to_webviews(self, source_name: str | None = None):
+        synced_graphs: list[str] = []
+        affected_traces: list[str] = []
+
+        for graph_name, fig in self.current_figures.items():
+            if not is_phase_sync_graph(graph_name):
+                continue
+
+            updates = get_phase_trace_updates(fig, graph_name, self.phase_visibility)
+            if not updates:
+                continue
+
+            indices = [update["index"] for update in updates]
+            visible_values = [
+                True if update["visible"] else "legendonly"
+                for update in updates
+            ]
+            extreme_updates = get_current_extreme_marker_updates(fig)
+            affected_traces.extend(
+                f"{graph_name}:{update['trace']}->{update['phase']}={update['visible']}"
+                for update in updates
+            )
+
+            script = f"""
+            (function() {{
+                var plot = document.getElementById('plot');
+                if (!plot || typeof Plotly === 'undefined') return 'plot-not-ready';
+                Plotly.restyle(
+                    plot,
+                    {{visible: {json.dumps(visible_values, ensure_ascii=False)}}},
+                    {json.dumps(indices)}
+                );
+                var extremeUpdates = {json.dumps(extreme_updates, ensure_ascii=False, default=str)};
+                extremeUpdates.forEach(function(update) {{
+                    Plotly.restyle(
+                        plot,
+                        {{
+                            x: [update.x],
+                            y: [update.y],
+                            text: [update.text],
+                            hovertemplate: [update.hovertemplate]
+                        }},
+                        [update.index]
+                    );
+                }});
+                return 'ok';
+            }})();
+            """
+
+            webview = self.webviews.get(graph_name)
+            if webview is None:
+                continue
+
+            webview.page().runJavaScript(script)
+            synced_graphs.append(graph_name)
+
+    def _on_phase_legend_toggled(self, source_name: str, trace_name: str, visible: bool):
+        phase = get_trace_phase(source_name, trace_name)
+
+        if phase is None:
+            return
+
+        next_visibility = self.phase_visibility.copy()
+        next_visibility[phase] = visible
+
+        if not any(next_visibility.values()):
+            self._sync_phase_visibility_to_webviews(source_name=source_name)
+            return
+
+        self.phase_visibility = next_visibility
+        self._apply_phase_visibility_to_figures(self.current_figures)
+
+        log_profile_event(
+            "Phase sync update",
+            source=source_name,
+            trace=trace_name,
+            phase=phase,
+            visible=visible,
+            state=self.phase_visibility,
+        )
+
+        self._sync_phase_visibility_to_webviews(source_name=source_name)
 
     def _apply_interface_visual_standard(
         self,
@@ -1109,12 +1254,19 @@ class GraphPage(QWidget):
             for name, builder in builders:
                 with profile_block("Graph build", graph=name, zoom=zoom_mode, rows=len(df)):
                     fig = builder(filtered_processed, show_logo=False)
-                    figures[name] = self._apply_interface_visual_standard(
+                    fig = self._apply_interface_visual_standard(
                         graph_name=name,
                         fig=fig,
                         dataframe=df,
                         zoom_mode=zoom_mode,
                     )
+                    apply_phase_visibility_to_figure(
+                        fig=fig,
+                        graph_name=name,
+                        phase_visibility=self.phase_visibility,
+                    )
+                    update_phase_extreme_traces(fig, name)
+                    figures[name] = fig
 
             return figures, df
 
@@ -1177,6 +1329,7 @@ class GraphPage(QWidget):
         self.current_figures = {}
         self.current_x_min = None
         self.current_x_max = None
+        self.phase_visibility = default_phase_visibility()
 
         for webview in self.webviews.values():
             webview.setHtml(
@@ -1190,6 +1343,7 @@ class GraphPage(QWidget):
             self.current_processed = processed
             self.current_x_min = None
             self.current_x_max = None
+            self.phase_visibility = default_phase_visibility()
 
             try:
                 with profile_block(

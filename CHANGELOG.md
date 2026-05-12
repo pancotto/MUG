@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.3.2 - 2026-05-12
+
+Release focused on consistent phase visibility behavior across synchronized three-phase graphs, preserving the existing ETL, benchmark, profiling, zoom/rebuild, PDF export, and PyInstaller flows.
+
+### Added
+
+- Global phase synchronization for compatible three-phase graphs:
+  - Tensão
+  - Corrente
+  - DHT Tensão
+  - DHT Corrente
+- Shared phase state for R, S, and T during the graph-page session.
+- Incremental Plotly trace visibility updates without rebuilding all graphs on legend clicks.
+- Phase-aware Máx/Mín labels for synchronized three-phase graphs.
+
+### Changed
+
+- Máx/Mín markers now identify the originating phase or line pair, for example `363,05 A (S)` and `386,25 V (ST)`.
+- Máx/Mín markers now recalculate using only currently visible phases.
+- PDF export now reflects the current visible phase state and phase-aware Máx/Mín labels.
+- Zoom/rebuild preserves the active global phase state.
+- Removed temporary phase-sync development logs from standard terminal output.
+- Updated project version from `1.3.1` to `1.3.2`.
+
+### Compatibility
+
+- Preserves the ETL architecture and dataset compatibility for Primata XLSX, Primata TXT, and Embrasul TXT.
+- Preserves lazy loading of PDF exporter and update checker.
+- Preserves benchmark/profiling infrastructure.
+- Preserves PyInstaller onedir packaging and Inno Setup installer flow.
+
 ## v1.3.1 - 2026-05-11
 
 Release focused on measurement, release hardening, startup cost reduction, and low-risk ETL optimizations while preserving the current UI, graph behavior, PDF export flow, PyInstaller compatibility, and the `ProcessedData` architecture.
