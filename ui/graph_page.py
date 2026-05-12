@@ -52,7 +52,7 @@ from core.profiling import profile_block, log_profile_event
 from ui.about_dialog import AboutDialog
 
 
-APP_VERSION_FALLBACK = "1.3.2"
+APP_VERSION_FALLBACK = "1.3.3"
 
 
 def get_app_version() -> str:
@@ -965,11 +965,6 @@ class GraphPage(QWidget):
         )
 
     def show_about_dialog(self):
-
-        print("\n[ABOUT DIALOG]")
-        print("available_update:")
-        print(self.main_window.available_update)
-
         dialog = AboutDialog(
             self,
             app_version=get_app_version(),

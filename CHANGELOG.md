@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.3.3 - 2026-05-12
+
+Release focused on completing the phase synchronization ecosystem and improving the update-download workflow while preserving ETL, benchmark/profiling, lazy loading, zoom/rebuild, PDF export, and PyInstaller compatibility.
+
+### Added
+
+- Full integration of the `(V) x (I)` graph into the global phase synchronization system.
+- Bidirectional phase propagation between:
+  - Tensão
+  - Corrente
+  - DHT Tensão
+  - DHT Corrente
+  - `(V) x (I)`
+- Dynamic Máx/Mín recalculation for `(V) x (I)` using only visible phases.
+- Separate phase-aware extreme groups for the combined graph:
+  - Máx/Mín (V)
+  - Máx/Mín (A)
+- Direct installer download URL generation for update prompts.
+
+### Changed
+
+- `(V) x (I)` now respects global R/S/T visibility and propagates legend changes to all synchronized graphs.
+- `(V) x (I)` PDF export now respects visible phases, recalculated extremes, and phase-aware labels.
+- Update buttons now open the installer asset directly, using the pattern `MUG_Setup_<versão>.exe`.
+- Update flow now closes the application gracefully after opening the installer download URL.
+- Removed remaining debug prints from update/about dialog flows.
+- Updated project version from `1.3.2` to `1.3.3`.
+
+### Compatibility
+
+- Preserves the ETL architecture and dataset compatibility for Primata XLSX, Primata TXT, and Embrasul TXT.
+- Preserves benchmark/profiling infrastructure.
+- Preserves lazy loading of PDF exporter and update checker.
+- Preserves PyInstaller onedir packaging and Inno Setup installer flow.
+
 ## v1.3.2 - 2026-05-12
 
 Release focused on consistent phase visibility behavior across synchronized three-phase graphs, preserving the existing ETL, benchmark, profiling, zoom/rebuild, PDF export, and PyInstaller flows.

@@ -6,8 +6,23 @@ GITHUB_RELEASE_API = (
     "https://api.github.com/repos/pancotto/MUG/releases/latest"
 )
 
+GITHUB_RELEASE_DOWNLOAD_BASE = (
+    "https://github.com/pancotto/MUG/releases/download"
+)
+
 
 class UpdateChecker:
+
+    @staticmethod
+    def build_installer_download_url(version: str) -> str:
+        tag = version.strip()
+        if not tag.startswith("v"):
+            tag = f"v{tag}"
+
+        return (
+            f"{GITHUB_RELEASE_DOWNLOAD_BASE}/{tag}/"
+            f"MUG_Setup_{tag}.exe"
+        )
 
     @staticmethod
     def get_latest_release():
@@ -37,6 +52,7 @@ class UpdateChecker:
                 "version": version,
                 "name": data.get("name", ""),
                 "html_url": data.get("html_url", ""),
+                "download_url": UpdateChecker.build_installer_download_url(version),
                 "body": data.get("body", ""),
             }
 
@@ -69,6 +85,7 @@ class UpdateChecker:
                 return {
                     "version": latest["version"],
                     "html_url": latest["html_url"],
+                    "download_url": latest["download_url"],
                     "body": latest.get("body", ""),
                 }
 

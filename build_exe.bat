@@ -4,7 +4,7 @@ title MUG Build System
 cd /d "%~dp0"
 
 echo ==========================================
-echo        BUILDING MUG v1.3.2
+echo        BUILDING MUG v1.3.3
 echo ==========================================
 echo.
 
@@ -13,7 +13,7 @@ if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 
 echo.
-echo Gerando executavel MUG v1.3.2...
+echo Gerando executavel MUG v1.3.3...
 echo.
 
 pyinstaller MUG.spec --clean

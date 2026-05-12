@@ -1,7 +1,8 @@
 import webbrowser
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
+    QApplication,
     QDialog,
     QLabel,
     QPushButton,
@@ -21,10 +22,6 @@ class AboutDialog(QDialog):
         super().__init__(parent)
 
         self.available_update = available_update
-
-        print("\n[ABOUT DIALOG]")
-        print("available_update:")
-        print(self.available_update)
 
         self.setWindowTitle("Sobre o MUG")
         self.setFixedSize(520, 420)
@@ -115,11 +112,7 @@ class AboutDialog(QDialog):
                 }
             """)
 
-            download_button.clicked.connect(
-                lambda: webbrowser.open(
-                    self.available_update["html_url"]
-                )
-            )
+            download_button.clicked.connect(self.open_update_download_and_quit)
 
             layout.addWidget(download_button)
 
@@ -166,3 +159,24 @@ class AboutDialog(QDialog):
         layout.addLayout(buttons_layout)
 
         self.setLayout(layout)
+
+    def open_update_download_and_quit(self):
+        download_url = (
+            self.available_update.get("download_url")
+            or self.available_update.get("html_url")
+        )
+        release_url = self.available_update.get("html_url")
+
+        try:
+            opened = webbrowser.open(download_url)
+            if not opened and release_url:
+                webbrowser.open(release_url)
+        except Exception:
+            if release_url:
+                webbrowser.open(release_url)
+
+        app = QApplication.instance()
+        if app is not None:
+            for widget in app.topLevelWidgets():
+                widget.close()
+            QTimer.singleShot(250, app.quit)

@@ -1,7 +1,7 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 import webbrowser
 
-from PySide6.QtWidgets import QMainWindow, QStackedWidget, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QMessageBox
 
 from ui.input_page import InputPage
 from ui.graph_page import GraphPage, get_app_version
@@ -230,8 +230,26 @@ class MainWindow(QMainWindow):
 
             if msg_box.clickedButton() == yes_button:
 
-                webbrowser.open(update["html_url"])
+                self.open_update_download_and_quit(update)
 
         except Exception as e:
 
             print(f"[UPDATE CHECK ERROR] {e}")
+
+    def open_update_download_and_quit(self, update: dict):
+        download_url = update.get("download_url") or update.get("html_url")
+        release_url = update.get("html_url")
+
+        try:
+            opened = webbrowser.open(download_url)
+            if not opened and release_url:
+                webbrowser.open(release_url)
+        except Exception:
+            if release_url:
+                webbrowser.open(release_url)
+
+        self.close()
+
+        app = QApplication.instance()
+        if app is not None:
+            QTimer.singleShot(250, app.quit)
