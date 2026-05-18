@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_id": "v1.3.3-ui-startup",
+  "created_at": "2026-05-12T16:10:04",
+  "metrics": {
+    "import_ui": {
+      "seconds": 0.7940211999812163,
+      "status": "ok"
+    },
+    "qapplication": {
+      "seconds": 0.04735800001071766,
+      "status": "ok"
+    },
+    "mainwindow_creation": {
+      "seconds": 1.3487013999838382,
+      "status": "ok"
+    },
+    "total_to_ui_ready": {
+      "seconds": 2.190080599975772,
+      "status": "ok"
+    }
+  },
+  "lazy_loaded_modules_after_ui_ready": {
+    "core.pdf_exporter": false,
+    "core.update_checker": true,
+    "requests": true
+  },
+  "notes": [
+    "MainWindow creation includes the current update-check flow, which loads core.update_checker/requests after UI startup path begins.",
+    "Earlier app-import benchmark confirms lazy loading at pure import/startup-import boundary."
+  ]
+}

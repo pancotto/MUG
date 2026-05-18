@@ -1,0 +1,313 @@
+{
+  "schema_version": 1,
+  "run_id": "v1.3.1-primata-xlsx",
+  "created_at": "2026-05-11T21:00:57",
+  "dataset": {
+    "path": "benchmarks\\datasets\\primata.xlsx",
+    "suffix": ".xlsx",
+    "rows": 33603,
+    "columns": 65
+  },
+  "environment": {
+    "python": "3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]",
+    "platform": "win32",
+    "executable": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\.venv\\Scripts\\python.exe"
+  },
+  "metrics": {
+    "startup": {
+      "seconds": 1.4979288999456912,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "app_import_seconds": 1.380498
+      }
+    },
+    "etl": {
+      "seconds": 9.75632859999314,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "dataset": "primata.xlsx"
+      }
+    },
+    "initial_graph_generation": {
+      "seconds": 1.376642899995204,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "rows": 33603
+      }
+    },
+    "initial_graphs": {
+      "graphs": {
+        "Tensao": {
+          "seconds": 0.3275150999543257,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Corrente": {
+          "seconds": 0.0769344000145793,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Potencia Ativa": {
+          "seconds": 0.05675250000786036,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Potencia Aparente": {
+          "seconds": 0.07745370001066476,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Fator de Potencia": {
+          "seconds": 0.0606998999719508,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Deseq. Tensao": {
+          "seconds": 0.05789689999073744,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Deseq. Corrente": {
+          "seconds": 0.05140739999478683,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Consumo": {
+          "seconds": 0.050478699966333807,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "DHT Tensao": {
+          "seconds": 0.07274079998023808,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "DHT Corrente": {
+          "seconds": 0.07118869997793809,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "Tensao x Corrente": {
+          "seconds": 0.20883119996869937,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        },
+        "kW x kVA": {
+          "seconds": 0.1700864000013098,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 33603
+          }
+        }
+      },
+      "graph_count": 12
+    },
+    "zoom_rebuild": {
+      "seconds": 0.7354408000246622,
+      "memory_start_mb": null,
+      "memory_end_mb": null,
+      "memory_delta_mb": null,
+      "status": "ok",
+      "details": {
+        "rows": 16802
+      }
+    },
+    "zoom_graphs": {
+      "graphs": {
+        "Tensao": {
+          "seconds": 0.07713420002255589,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Corrente": {
+          "seconds": 0.05450690002180636,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Potencia Ativa": {
+          "seconds": 0.042857900029048324,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Potencia Aparente": {
+          "seconds": 0.04342539998469874,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Fator de Potencia": {
+          "seconds": 0.03876329999184236,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Deseq. Tensao": {
+          "seconds": 0.043900799995753914,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Deseq. Corrente": {
+          "seconds": 0.03832799999509007,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Consumo": {
+          "seconds": 0.031200000026728958,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "DHT Tensao": {
+          "seconds": 0.054830800043419003,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "DHT Corrente": {
+          "seconds": 0.050514500006102026,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "Tensao x Corrente": {
+          "seconds": 0.15263969998341054,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        },
+        "kW x kVA": {
+          "seconds": 0.10464239999419078,
+          "memory_start_mb": null,
+          "memory_end_mb": null,
+          "memory_delta_mb": null,
+          "status": "ok",
+          "details": {
+            "rows": 16802
+          }
+        }
+      },
+      "graph_count": 12
+    }
+  },
+  "artifacts": {
+    "log": "docs\\benchmarks\\logs\\v1.3.1-primata-xlsx.log",
+    "json": "docs\\benchmarks\\runs\\v1.3.1-primata-xlsx.json",
+    "markdown": "docs\\benchmarks\\runs\\v1.3.1-primata-xlsx.md"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "run_id": "v1.3.3-etl-breakdown",
+  "created_at": "2026-05-12T16:12:19",
+  "metrics": [
+    {
+      "dataset": "benchmarks\\datasets\\primata.xlsx",
+      "source": "primata_xlsx",
+      "rows": 33603,
+      "columns": 64,
+      "read_seconds": 10.26132749998942,
+      "datetime_parse_seconds": 0.05861080001341179,
+      "numeric_parse_seconds": 0.019906500005163252,
+      "prepare_common_dataframe_seconds": 0.10721230000490323,
+      "numeric_columns": 62,
+      "already_numeric_columns": 62,
+      "parsed_numeric_columns": 0
+    },
+    {
+      "dataset": "benchmarks\\datasets\\primata.txt",
+      "source": "primata_txt",
+      "rows": 33603,
+      "columns": 64,
+      "read_seconds": 0.48158500000135973,
+      "datetime_parse_seconds": 0.06918069999665022,
+      "numeric_parse_seconds": 1.4134058999479748,
+      "prepare_common_dataframe_seconds": 1.487621999986004,
+      "numeric_columns": 62,
+      "already_numeric_columns": 0,
+      "parsed_numeric_columns": 62
+    },
+    {
+      "dataset": "benchmarks\\datasets\\embrasul.txt",
+      "source": "embrasul_txt",
+      "rows": 15044,
+      "columns": 70,
+      "read_seconds": 0.5607576000038534,
+      "datetime_parse_seconds": 0.028981999959796667,
+      "numeric_parse_seconds": 0.010389200004283339,
+      "prepare_common_dataframe_seconds": 0.05017760000191629,
+      "numeric_columns": 68,
+      "already_numeric_columns": 68,
+      "parsed_numeric_columns": 0
+    }
+  ],
+  "artifacts": {
+    "log": "docs\\benchmarks\\logs\\v1.3.3-etl-breakdown.log"
+  }
+}

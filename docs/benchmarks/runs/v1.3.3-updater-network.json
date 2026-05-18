@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "run_id": "v1.3.3-updater-network",
+  "created_at": "2026-05-12T16:13:00",
+  "metrics": {
+    "get_latest_release": {
+      "seconds": 0.4253099000197835,
+      "status": "ok"
+    },
+    "is_update_available": {
+      "seconds": 0.2247378000174649,
+      "status": "ok"
+    },
+    "build_download_url": {
+      "seconds": 0.0,
+      "status": "ok"
+    }
+  },
+  "latest": {
+    "version": "1.3.3",
+    "name": "MUG v1.3.3",
+    "html_url": "https://github.com/pancotto/MUG/releases/tag/v1.3.3",
+    "download_url": "https://github.com/pancotto/MUG/releases/download/v1.3.3/MUG_Setup_v1.3.3.exe",
+    "body": "# MUG v1.3.3 Release Notes\n\nRelease date: 2026-05-12\n\n## Summary\n\nMUG v1.3.3 completes the global phase synchronization workflow by integrating the `(V) x (I)` graph into the same behavior already used by Tensão, Corrente, DHT Tensão, and DHT Corrente. It also improves the update workflow so the user is sent directly to the installer asset and the application closes before installation.\n\nThe release preserves the existing ETL architecture, benchmark/profiling infrastructure, lazy loading, zoom/rebuild behavior, PDF pipeline, PyInstaller packaging, and Inno Setup installer flow.\n\n## Highlights\n\n- Full integration of `(V) x (I)` into the global phase synchronization ecosystem.\n- Bidirectional synchronization across:\n  - Tensão\n  - Corrente\n  - DHT Tensão\n  - DHT Corrente\n  - `(V) x (I)`\n- Incremental propagation using `Plotly.restyle()`.\n- Existing zoom/rebuild behavior preserved.\n- Dynamic Máx/Mín recalculation using only visible phases.\n- Phase-aware extreme labels, for example:\n  - `386,25 V (ST)`\n  - `363,05 A (S)`\n- Correct separation of combined graph extreme groups:\n  - Máx/Mín (V)\n  - Máx/Mín (A)\n- PDF export now respects visible phases, recalculated extremes, and phase-aware labels for `(V) x (I)`.\n\n## Updater Improvements\n\nThe update workflow now opens the installer asset directly instead of the general GitHub release page.\n\nThe URL is built dynamically from the detected latest version:\n\n```text\nhttps://github.com/pancotto/MUG/releases/download/<versão>/MUG_Setup_<versão>.exe\n```\n\nExample:\n\n```text\nhttps://github.com/pancotto/MUG/releases/download/v1.3.3/MUG_Setup_v1.3.3.exe\n```\n\nWhen the user clicks `BAIXAR`, the application now:\n\n1. Opens the direct installer download URL.\n2. Falls back to the release page if opening the direct URL fails.\n3. Closes the main window.\n4. Gracefully quits `QApplication` before installation.\n\nNo internal downloader was added.\n\n## Compatibility\n\n- Primata XLSX remains supported.\n- Primata TXT remains supported.\n- Embrasul TXT remains supported.\n- Existing ETL behavior is preserved.\n- Existing benchmark/profiling infrastructure is preserved.\n- Lazy loading of PDF exporter and update checker is preserved.\n- PyInstaller onedir build remains the supported executable packaging flow.\n- Inno Setup remains the supported Windows installer flow.\n\n## Build Outputs\n\nExpected release outputs:\n\n- Windows executable: `dist/MUG/MUG.exe`\n- Windows installer: `installer/MUG_Setup_v1.3.3.exe`\n"
+  },
+  "update_available": false,
+  "notes": [
+    "Network timing depends on GitHub API latency and local connection."
+  ]
+}
