@@ -41,7 +41,7 @@ from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
 from ui.about_dialog import AboutDialog
 
 
-APP_VERSION_FALLBACK = "1.3.0"
+APP_VERSION_FALLBACK = "1.3.4"
 
 
 def get_app_version() -> str:

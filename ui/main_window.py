@@ -229,8 +229,44 @@ class MainWindow(QMainWindow):
 
             if msg_box.clickedButton() == yes_button:
 
-                webbrowser.open(update["html_url"])
+                self.open_update_download(update)
 
         except Exception as e:
 
             print(f"[UPDATE CHECK ERROR] {e}")
+
+    def open_update_download(self, update: dict):
+        direct_url = str(update.get("browser_download_url") or "").strip()
+        if not direct_url:
+            direct_url = UpdateChecker.get_direct_download_url(update)
+        release_url = UpdateChecker.get_release_page_url(update)
+        target_url = direct_url or release_url
+
+        if not target_url:
+            QMessageBox.warning(
+                self,
+                "Atualização indisponível",
+                "Não foi possível localizar um link válido para download da atualização."
+            )
+            print("[UPDATE CHECK ERROR] No valid update URL available.")
+            return
+
+        try:
+            opened = webbrowser.open(target_url)
+            if opened:
+                return
+        except Exception as e:
+            print(f"[UPDATE CHECK ERROR] Failed to open update URL: {e}")
+
+        if direct_url and release_url and direct_url != release_url:
+            try:
+                webbrowser.open(release_url)
+                return
+            except Exception as e:
+                print(f"[UPDATE CHECK ERROR] Failed to open release page URL: {e}")
+
+        QMessageBox.warning(
+            self,
+            "Atualização indisponível",
+            "Não foi possível abrir o link de download da atualização."
+        )

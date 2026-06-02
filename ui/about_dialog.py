@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
 )
 
+from core.update_checker import UpdateChecker
+
 
 class AboutDialog(QDialog):
 
@@ -116,9 +118,7 @@ class AboutDialog(QDialog):
             """)
 
             download_button.clicked.connect(
-                lambda: webbrowser.open(
-                    self.available_update["html_url"]
-                )
+                self.open_update_download
             )
 
             layout.addWidget(download_button)
@@ -166,3 +166,27 @@ class AboutDialog(QDialog):
         layout.addLayout(buttons_layout)
 
         self.setLayout(layout)
+
+    def open_update_download(self):
+        direct_url = str(self.available_update.get("browser_download_url") or "").strip()
+        if not direct_url:
+            direct_url = UpdateChecker.get_direct_download_url(self.available_update)
+        release_url = UpdateChecker.get_release_page_url(self.available_update)
+        target_url = direct_url or release_url
+
+        if not target_url:
+            print("[UPDATE CHECK ERROR] No valid update URL available.")
+            return
+
+        try:
+            opened = webbrowser.open(target_url)
+            if opened:
+                return
+        except Exception as e:
+            print(f"[UPDATE CHECK ERROR] Failed to open update URL: {e}")
+
+        if direct_url and release_url and direct_url != release_url:
+            try:
+                webbrowser.open(release_url)
+            except Exception as e:
+                print(f"[UPDATE CHECK ERROR] Failed to open release page URL: {e}")
