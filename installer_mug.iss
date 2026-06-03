@@ -1,5 +1,5 @@
 #define MyAppName "MUG"
-#define MyAppVersion "1.3.6"
+#define MyAppVersion "1.3.7"
 #define MyAppPublisher "ECOCEL"
 #define MyAppExeName "MUG.exe"
 

@@ -2,7 +2,7 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.3.6**
+Current version: **v1.3.7**
 
 ---
 

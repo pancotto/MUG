@@ -9,14 +9,19 @@ from PySide6.QtCore import QObject, QUrl, Signal, Slot, QThread, Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QApplication,
+    QButtonGroup,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QTabWidget,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
     QMessageBox,
     QLabel,
     QPushButton,
     QCheckBox,
+    QRadioButton,
     QScrollArea,
     QFileDialog,
     QProgressBar,
@@ -44,6 +49,7 @@ from core.graph_builder import (
 )
 from core.models import ProcessedData
 from core.pdf_exporter import (
+    build_custom_pdf_filename,
     build_daily_pdf_filename,
     export_figures_to_pdf,
     GRAPH_EXPORT_ORDER,
@@ -74,7 +80,7 @@ from core.time_filter import (
 from ui.about_dialog import AboutDialog
 
 
-APP_VERSION_FALLBACK = "1.3.6"
+APP_VERSION_FALLBACK = "1.3.7"
 
 
 def get_app_version() -> str:
@@ -420,14 +426,13 @@ class PdfExportWorker(QObject):
             self.error.emit(str(exc))
 
 
-class DailyPdfExportWorker(QObject):
+class CustomPdfExportWorker(QObject):
     progress = Signal(int, int, str)
     finished = Signal(list, list, bool)
 
-    def __init__(self, original_processed, detected_days, selected_graphs, output_dir):
+    def __init__(self, export_tasks, selected_graphs, output_dir):
         super().__init__()
-        self.original_processed = original_processed
-        self.detected_days = tuple(detected_days)
+        self.export_tasks = tuple(export_tasks)
         self.selected_graphs = selected_graphs
         self.output_dir = Path(output_dir)
         self._cancel_requested = False
@@ -439,55 +444,25 @@ class DailyPdfExportWorker(QObject):
     def run(self):
         successes: list[str] = []
         failures: list[str] = []
-        total = len(self.detected_days)
+        total = len(self.export_tasks)
         canceled = False
 
-        for index, day in enumerate(self.detected_days, start=1):
+        for index, task in enumerate(self.export_tasks, start=1):
             if self._cancel_requested:
                 canceled = True
                 break
 
-            label = day.date.strftime("%d/%m/%Y")
+            label = task["label"]
             self.progress.emit(index, total, label)
 
             try:
-                dataframe = apply_time_filter(
-                    self.original_processed.dataframe,
-                    custom_time_filter(
-                        day.start_datetime,
-                        day.end_datetime,
-                        label=day.label,
-                    ),
-                )
-
-                if dataframe.empty:
-                    raise ValueError("Dia sem registros de medição.")
-
-                processed_for_day = ProcessedData(
-                    company=self.original_processed.company,
-                    city=self.original_processed.city,
-                    trafo=self.original_processed.trafo,
-                    local=self.original_processed.local,
-                    revision=self.original_processed.revision,
-                    excel_path=self.original_processed.excel_path,
-                    dataframe=dataframe,
-                    integration_time=self.original_processed.integration_time,
-                    tension=self.original_processed.tension,
-                    equipment_type=self.original_processed.equipment_type,
-                    equipment_reference=self.original_processed.equipment_reference,
-                    equipment_value=self.original_processed.equipment_value,
-                )
-
                 generated_path = export_figures_to_pdf(
-                    processed=processed_for_day,
+                    processed=task["processed"],
                     selected_graphs=self.selected_graphs,
                     output_dir=self.output_dir,
                     zoom_mode=False,
                 )
-                target_path = self.output_dir / build_daily_pdf_filename(
-                    self.original_processed.company,
-                    day.date,
-                )
+                target_path = self.output_dir / task["filename"]
                 if target_path.exists():
                     target_path.unlink()
                 Path(generated_path).replace(target_path)
@@ -1047,6 +1022,469 @@ class TimeSelectionTab(QWidget):
             "Incomplete": "Incompleto",
         }.get(status, status)
 
+
+class CustomMeasurementExportPanel(QWidget):
+    def __init__(
+        self,
+        parent,
+        original_processed: ProcessedData | None = None,
+        detected_days: tuple[DetectedDay, ...] = (),
+        selected_graphs: list[str] | None = None,
+    ):
+        super().__init__(parent)
+        self.original_processed = original_processed
+        self.detected_days = tuple(detected_days)
+        self.initial_selected_graphs = set(selected_graphs or [])
+        self.graph_checkboxes: dict[str, QCheckBox] = {}
+        self.day_checkboxes: list[QCheckBox] = []
+        self._graph_column_count = 0
+        self._build_ui()
+        self._update_visibility()
+
+    def _build_ui(self):
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #000000;
+                color: #f1f1f1;
+                font-family: Arial;
+            }
+            QGroupBox {
+                color: #f1f1f1;
+                border: 1px solid #333333;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding: 12px;
+                font-weight: bold;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
+            }
+            QLabel, QRadioButton, QCheckBox {
+                color: #f1f1f1;
+                background-color: transparent;
+            }
+            QRadioButton::indicator {
+                width: 14px;
+                height: 14px;
+                border-radius: 7px;
+                border: 1px solid #777777;
+                background-color: #111111;
+            }
+            QRadioButton::indicator:checked {
+                border: 1px solid #2d6cdf;
+                background-color: #2d6cdf;
+            }
+            QComboBox {
+                background-color: #111111;
+                color: #f1f1f1;
+                border: 1px solid #2d6cdf;
+                border-radius: 4px;
+                padding: 6px;
+                min-height: 24px;
+            }
+            QPushButton {
+                background-color: #1f5fbf;
+                color: #ffffff;
+                border: none;
+                border-radius: 7px;
+                padding: 9px 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #194f9e;
+            }
+        """)
+
+        root_layout = QVBoxLayout()
+        root_layout.setContentsMargins(18, 18, 18, 18)
+        root_layout.setSpacing(10)
+
+        title = QLabel("EXPORTAR MEDIÇÃO PERSONALIZADA")
+        title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        root_layout.addWidget(title)
+
+        root_layout.addWidget(self._build_scope_group())
+        root_layout.addWidget(self._build_mode_group())
+        root_layout.addWidget(self._build_graph_group())
+
+        self.setLayout(root_layout)
+
+    def refresh_context(
+        self,
+        original_processed: ProcessedData | None,
+        detected_days: tuple[DetectedDay, ...],
+    ):
+        self.original_processed = original_processed
+        self.detected_days = tuple(detected_days)
+        self._populate_interval_controls()
+        self._populate_day_checkboxes()
+        self._update_visibility()
+
+    def _build_scope_group(self) -> QGroupBox:
+        group = QGroupBox("1. Escopo da Exportação")
+        layout = QVBoxLayout()
+
+        self.scope_full_radio = QRadioButton("MEDIÇÃO COMPLETA")
+        self.scope_interval_radio = QRadioButton("INTERVALO PERSONALIZADO")
+        self.scope_days_radio = QRadioButton("DIAS SELECIONADOS")
+        self.scope_full_radio.setChecked(True)
+
+        self.scope_group = QButtonGroup(self)
+        for radio in [
+            self.scope_full_radio,
+            self.scope_interval_radio,
+            self.scope_days_radio,
+        ]:
+            self.scope_group.addButton(radio)
+            radio.toggled.connect(self._update_visibility)
+            layout.addWidget(radio)
+
+        self.interval_frame = QFrame()
+        interval_layout = QHBoxLayout()
+        interval_layout.setContentsMargins(0, 6, 0, 6)
+        self.start_date_combo = QComboBox()
+        self.start_time_combo = QComboBox()
+        self.end_date_combo = QComboBox()
+        self.end_time_combo = QComboBox()
+        interval_layout.addWidget(QLabel("Data Inicial"))
+        interval_layout.addWidget(self.start_date_combo)
+        interval_layout.addWidget(QLabel("Hora Inicial"))
+        interval_layout.addWidget(self.start_time_combo)
+        interval_layout.addWidget(QLabel("Data Final"))
+        interval_layout.addWidget(self.end_date_combo)
+        interval_layout.addWidget(QLabel("Hora Final"))
+        interval_layout.addWidget(self.end_time_combo)
+        self.interval_frame.setLayout(interval_layout)
+        layout.addWidget(self.interval_frame)
+
+        self._populate_interval_controls()
+        self.days_frame = QFrame()
+        days_layout = QVBoxLayout()
+        days_layout.setContentsMargins(0, 6, 0, 0)
+        quick_layout = QHBoxLayout()
+        for label, callback in [
+            ("SELECIONAR TODOS", self._select_all_days),
+            ("SOMENTE DIAS COMPLETOS", self._select_complete_days),
+            ("LIMPAR SELEÇÃO", self._clear_days),
+        ]:
+            button = QPushButton(label)
+            if label == "LIMPAR SELEÇÃO":
+                button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #8b1e1e;
+                        color: #ffffff;
+                        border: none;
+                        border-radius: 7px;
+                        padding: 9px 14px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #a32626;
+                    }
+                    QPushButton:pressed {
+                        background-color: #6f1818;
+                    }
+                """)
+            else:
+                button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2d7d46;
+                        color: #ffffff;
+                        border: none;
+                        border-radius: 7px;
+                        padding: 9px 14px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #25673a;
+                    }
+                    QPushButton:pressed {
+                        background-color: #1f5131;
+                    }
+                """)
+            button.clicked.connect(callback)
+            quick_layout.addWidget(button)
+        days_layout.addLayout(quick_layout)
+
+        self.days_scroll = QScrollArea()
+        self.days_scroll.setWidgetResizable(True)
+        self.days_container = QWidget()
+        self.days_checkbox_layout = QVBoxLayout()
+        self.days_container.setLayout(self.days_checkbox_layout)
+        self.days_scroll.setWidget(self.days_container)
+        self.days_scroll.setMinimumHeight(140)
+        days_layout.addWidget(self.days_scroll)
+        self.days_frame.setLayout(days_layout)
+        layout.addWidget(self.days_frame)
+        self._populate_day_checkboxes()
+
+        group.setLayout(layout)
+        return group
+
+    def _build_mode_group(self) -> QGroupBox:
+        group = QGroupBox("2. Modo de Exportação")
+        layout = QHBoxLayout()
+        self.mode_single_radio = QRadioButton("PDF ÚNICO")
+        self.mode_daily_radio = QRadioButton("PDFs SEPARADOS POR DIA")
+        self.mode_single_radio.setChecked(True)
+        layout.addWidget(self.mode_single_radio)
+        layout.addWidget(self.mode_daily_radio)
+        group.setLayout(layout)
+        return group
+
+    def _build_graph_group(self) -> QGroupBox:
+        group = QGroupBox("3. Gráficos")
+        layout = QVBoxLayout()
+
+        quick_layout = QHBoxLayout()
+        for label, callback, is_clear in [
+            ("SELEÇÃO PADRÃO", self._select_default_graphs, False),
+            ("SELECIONAR TODOS", self._select_all_graphs, False),
+            ("LIMPAR SELEÇÃO", self._clear_graphs, True),
+        ]:
+            button = QPushButton(label)
+            if is_clear:
+                button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #8b1e1e;
+                        color: #ffffff;
+                        border: none;
+                        border-radius: 7px;
+                        padding: 9px 14px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #a32626;
+                    }
+                    QPushButton:pressed {
+                        background-color: #6f1818;
+                    }
+                """)
+            else:
+                button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2d7d46;
+                        color: #ffffff;
+                        border: none;
+                        border-radius: 7px;
+                        padding: 9px 14px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #25673a;
+                    }
+                    QPushButton:pressed {
+                        background-color: #1f5131;
+                    }
+                """)
+            button.clicked.connect(callback)
+            quick_layout.addWidget(button)
+        layout.addLayout(quick_layout)
+
+        self.graph_grid_layout = QGridLayout()
+        self.graph_grid_layout.setHorizontalSpacing(18)
+        self.graph_grid_layout.setVerticalSpacing(8)
+        for graph_name in GRAPH_EXPORT_ORDER:
+            checkbox = QCheckBox(graph_name)
+            checkbox.setChecked(graph_name in self.initial_selected_graphs)
+            self.graph_checkboxes[graph_name] = checkbox
+        self._arrange_graph_checkboxes(3)
+        layout.addLayout(self.graph_grid_layout)
+        group.setLayout(layout)
+        return group
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._arrange_graph_checkboxes(3 if self.width() >= 760 else 2)
+
+    def _arrange_graph_checkboxes(self, column_count: int):
+        if self._graph_column_count == column_count:
+            return
+
+        while self.graph_grid_layout.count():
+            self.graph_grid_layout.takeAt(0)
+
+        self._graph_column_count = column_count
+        for index, graph_name in enumerate(GRAPH_EXPORT_ORDER):
+            checkbox = self.graph_checkboxes[graph_name]
+            row = index // column_count
+            column = index % column_count
+            self.graph_grid_layout.addWidget(checkbox, row, column)
+
+    def _populate_interval_controls(self):
+        self.start_date_combo.clear()
+        self.start_time_combo.clear()
+        self.end_date_combo.clear()
+        self.end_time_combo.clear()
+
+        if self.original_processed is None:
+            return
+
+        dataframe = self.original_processed.dataframe
+        dates = measurement_date_options(dataframe)
+        times = time_options_for_integration(self.original_processed.integration_time)
+        for date_value in dates:
+            label = pd.Timestamp(date_value).strftime("%d/%m/%Y")
+            iso_value = pd.Timestamp(date_value).strftime("%Y-%m-%d")
+            self.start_date_combo.addItem(label, iso_value)
+            self.end_date_combo.addItem(label, iso_value)
+        for combo in [self.start_time_combo, self.end_time_combo]:
+            combo.addItem(FIRST_RECORD_LABEL, FIRST_RECORD_OF_DAY)
+            combo.addItem(LAST_RECORD_LABEL, LAST_RECORD_OF_DAY)
+            for time_value in times:
+                combo.addItem(time_value, time_value)
+        try:
+            start, end = get_measurement_bounds(dataframe)
+            self._set_combo_value(self.start_date_combo, start.strftime("%Y-%m-%d"))
+            self._set_combo_value(self.end_date_combo, end.strftime("%Y-%m-%d"))
+            self._set_combo_value(self.start_time_combo, FIRST_RECORD_OF_DAY)
+            self._set_combo_value(self.end_time_combo, LAST_RECORD_OF_DAY)
+        except Exception:
+            pass
+
+    def _populate_day_checkboxes(self):
+        while self.days_checkbox_layout.count():
+            item = self.days_checkbox_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        self.day_checkboxes = []
+        for day in self.detected_days:
+            checkbox = QCheckBox(
+                f"{day.label} - {TimeSelectionTab._display_status(day.status)} "
+                f"({format_datetime(day.start_datetime)} → {format_datetime(day.end_datetime)})"
+            )
+            checkbox.setChecked(True)
+            self.day_checkboxes.append(checkbox)
+            self.days_checkbox_layout.addWidget(checkbox)
+        self.days_checkbox_layout.addStretch()
+
+    @staticmethod
+    def _set_combo_value(combo: QComboBox, data_value: str):
+        index = combo.findData(data_value)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def _update_visibility(self, *args):
+        self.interval_frame.setVisible(self.scope_interval_radio.isChecked())
+        self.days_frame.setVisible(self.scope_days_radio.isChecked())
+
+    def _selected_graphs(self) -> list[str]:
+        return [
+            name for name, checkbox in self.graph_checkboxes.items()
+            if checkbox.isChecked()
+        ]
+
+    def _select_default_graphs(self):
+        for graph_name, checkbox in self.graph_checkboxes.items():
+            checkbox.setChecked(graph_name in DEFAULT_PDF_GRAPHS)
+
+    def _select_all_graphs(self):
+        for checkbox in self.graph_checkboxes.values():
+            checkbox.setChecked(True)
+
+    def _clear_graphs(self):
+        for checkbox in self.graph_checkboxes.values():
+            checkbox.setChecked(False)
+
+    def _selected_days(self) -> list[DetectedDay]:
+        return [
+            day for day, checkbox in zip(self.detected_days, self.day_checkboxes)
+            if checkbox.isChecked()
+        ]
+
+    def _interval_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
+        start_date = self.start_date_combo.currentData()
+        start_time = self.start_time_combo.currentData()
+        end_date = self.end_date_combo.currentData()
+        end_time = self.end_time_combo.currentData()
+        if not start_date or not start_time or not end_date or not end_time:
+            raise ValueError("Selecione data e hora inicial/final válidas.")
+        start = resolve_time_option(self.detected_days, start_date, start_time)
+        end = resolve_time_option(self.detected_days, end_date, end_time)
+        if end < start:
+            raise ValueError("A data/hora final deve ser maior ou igual à inicial.")
+        return start, end
+
+    def _export_days_for_current_scope(self) -> list[DetectedDay]:
+        if self.scope_days_radio.isChecked():
+            return self._selected_days()
+        if self.scope_interval_radio.isChecked():
+            try:
+                start, end = self._interval_bounds()
+            except Exception:
+                return []
+            indexes = selected_day_indexes_for_range(
+                self.detected_days,
+                start.normalize(),
+                end.normalize(),
+            )
+            return [self.detected_days[index] for index in indexes]
+        return list(self.detected_days)
+
+    def _select_all_days(self):
+        for checkbox in self.day_checkboxes:
+            checkbox.setChecked(True)
+
+    def _clear_days(self):
+        for checkbox in self.day_checkboxes:
+            checkbox.setChecked(False)
+
+    def _select_complete_days(self):
+        for day, checkbox in zip(self.detected_days, self.day_checkboxes):
+            checkbox.setChecked(day.status == "Complete")
+
+    def _select_incomplete_days(self):
+        for day, checkbox in zip(self.detected_days, self.day_checkboxes):
+            checkbox.setChecked(day.status == "Incomplete")
+
+    def build_export_config(self) -> dict | None:
+        graphs = self._selected_graphs()
+        if not graphs:
+            QMessageBox.warning(self, "Validação", "Selecione pelo menos um gráfico.")
+            return None
+
+        scope = "full"
+        start = None
+        end = None
+        days = self._export_days_for_current_scope()
+
+        if self.scope_interval_radio.isChecked():
+            scope = "interval"
+            try:
+                start, end = self._interval_bounds()
+            except Exception as exc:
+                QMessageBox.warning(self, "Validação", str(exc))
+                return None
+            if not days and self.mode_daily_radio.isChecked():
+                QMessageBox.warning(
+                    self,
+                    "Validação",
+                    "O intervalo selecionado não contém dias detectados."
+                )
+                return None
+        elif self.scope_days_radio.isChecked():
+            scope = "days"
+            if not days:
+                QMessageBox.warning(
+                    self,
+                    "Validação",
+                    "Selecione pelo menos um dia para exportação."
+                )
+                return None
+
+        return {
+            "scope": scope,
+            "mode": "daily" if self.mode_daily_radio.isChecked() else "single",
+            "start": start,
+            "end": end,
+            "days": days,
+            "graphs": graphs,
+        }
+
 class PdfExportTab(QWidget):
     def __init__(self, graph_page):
         super().__init__()
@@ -1056,7 +1494,9 @@ class PdfExportTab(QWidget):
         self._pdf_thread: QThread | None = None
         self._pdf_worker: PdfExportWorker | None = None
         self._daily_pdf_thread: QThread | None = None
-        self._daily_pdf_worker: DailyPdfExportWorker | None = None
+        self._daily_pdf_worker: CustomPdfExportWorker | None = None
+        self._custom_export_total_files = 0
+        self._custom_export_mode = ""
         self._build_ui()
 
     def _build_ui(self):
@@ -1183,7 +1623,7 @@ class PdfExportTab(QWidget):
         self.clear_all_button = QPushButton("LIMPAR SELEÇÃO")
         self.clear_all_button.setStyleSheet("""
             QPushButton {
-                background-color: #444444;
+                background-color: #8b1e1e;
                 color: white;
                 border: none;
                 border-radius: 8px;
@@ -1192,11 +1632,14 @@ class PdfExportTab(QWidget):
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #5a5a5a;
+                background-color: #a32626;
+            }
+            QPushButton:pressed {
+                background-color: #6f1818;
             }
             QPushButton:disabled {
-                background-color: #303030;
-                color: #b0b0b0;
+                background-color: #4f1717;
+                color: #d0d0d0;
             }
         """)
         self.clear_all_button.clicked.connect(self.clear_all)
@@ -1222,7 +1665,7 @@ class PdfExportTab(QWidget):
         """)
         self.export_button.clicked.connect(self.export_pdf)
 
-        self.export_daily_button = QPushButton("EXPORTAR MEDIÇÃO COMPLETA COM PDFs DIÁRIOS")
+        self.export_daily_button = QPushButton("EXPORTAR MEDIÇÃO PERSONALIZADA")
         self.export_daily_button.setStyleSheet("""
             QPushButton {
                 background-color: #1f5fbf;
@@ -1236,12 +1679,15 @@ class PdfExportTab(QWidget):
             QPushButton:hover {
                 background-color: #194f9e;
             }
+            QPushButton:pressed {
+                background-color: #173f7d;
+            }
             QPushButton:disabled {
                 background-color: #173f7d;
                 color: #d0d0d0;
             }
         """)
-        self.export_daily_button.clicked.connect(self.export_daily_pdfs)
+        self.export_daily_button.clicked.connect(self.export_custom_measurement)
 
         self.cancel_daily_button = QPushButton("PARAR EXPORTAÇÃO")
         self.cancel_daily_button.setVisible(False)
@@ -1273,10 +1719,6 @@ class PdfExportTab(QWidget):
         buttons_layout.addWidget(self.select_all_button)
         buttons_layout.addWidget(self.clear_all_button)
         buttons_layout.addWidget(self.export_button)
-        buttons_layout.addWidget(self.export_daily_button)
-        buttons_layout.addWidget(self.cancel_daily_button)
-        buttons_layout.addWidget(self.status_label)
-        buttons_layout.addWidget(self.progress_bar)
 
         checklist_container = QWidget()
         checklist_layout = QVBoxLayout()
@@ -1296,10 +1738,58 @@ class PdfExportTab(QWidget):
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(checklist_container)
 
-        root_layout.addWidget(title)
-        root_layout.addWidget(subtitle)
-        root_layout.addWidget(scroll_area)
-        root_layout.addLayout(buttons_layout)
+        left_column = QWidget()
+        left_layout = QVBoxLayout()
+        left_layout.setContentsMargins(0, 0, 12, 0)
+        left_layout.setSpacing(12)
+        left_layout.addWidget(title)
+        left_layout.addWidget(subtitle)
+        left_layout.addWidget(scroll_area, 1)
+        left_layout.addLayout(buttons_layout)
+        left_column.setLayout(left_layout)
+
+        self.custom_export_panel = CustomMeasurementExportPanel(
+            self,
+            self.graph_page.original_processed,
+            self.graph_page.time_selection_tab.detected_days,
+            self._selected_graphs(),
+        )
+
+        custom_buttons_layout = QVBoxLayout()
+        custom_buttons_layout.setContentsMargins(18, 0, 18, 18)
+        custom_buttons_layout.setSpacing(10)
+        custom_buttons_layout.addWidget(self.export_daily_button)
+        custom_buttons_layout.addWidget(self.cancel_daily_button)
+
+        right_container = QWidget()
+        right_layout = QVBoxLayout()
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(8)
+        right_layout.addWidget(self.custom_export_panel)
+        right_layout.addLayout(custom_buttons_layout)
+        right_layout.addStretch()
+        right_container.setLayout(right_layout)
+
+        right_scroll_area = QScrollArea()
+        right_scroll_area.setWidgetResizable(True)
+        right_scroll_area.setWidget(right_container)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setFrameShadow(QFrame.Shadow.Plain)
+        separator.setStyleSheet("color: #2a2a2a; background-color: #2a2a2a;")
+        separator.setFixedWidth(1)
+
+        columns_layout = QHBoxLayout()
+        columns_layout.setContentsMargins(0, 0, 0, 0)
+        columns_layout.setSpacing(14)
+        columns_layout.addWidget(left_column, 1)
+        columns_layout.addWidget(separator)
+        columns_layout.addWidget(right_scroll_area, 1)
+
+        root_layout.addLayout(columns_layout, 1)
+        root_layout.addWidget(self.status_label)
+        root_layout.addWidget(self.progress_bar)
 
         self.setLayout(root_layout)
 
@@ -1309,6 +1799,7 @@ class PdfExportTab(QWidget):
         self.select_default_button.setDisabled(exporting)
         self.select_all_button.setDisabled(exporting)
         self.clear_all_button.setDisabled(exporting)
+        self.custom_export_panel.setDisabled(exporting)
 
         for checkbox in self.checkboxes.values():
             checkbox.setDisabled(exporting)
@@ -1321,7 +1812,7 @@ class PdfExportTab(QWidget):
             self.status_label.setText("Processando gráficos e montando o arquivo PDF. Aguarde...")
         else:
             self.export_button.setText("EXPORTAR PDF")
-            self.export_daily_button.setText("EXPORTAR MEDIÇÃO COMPLETA COM PDFs DIÁRIOS")
+            self.export_daily_button.setText("EXPORTAR MEDIÇÃO PERSONALIZADA")
             self.cancel_daily_button.setVisible(False)
             self.cancel_daily_button.setEnabled(False)
             self.status_label.setText("")
@@ -1337,6 +1828,23 @@ class PdfExportTab(QWidget):
     def clear_all(self):
         for checkbox in self.checkboxes.values():
             checkbox.setChecked(False)
+
+    def refresh_custom_export_context(self):
+        self.custom_export_panel.refresh_context(
+            self.graph_page.original_processed,
+            self.graph_page.time_selection_tab.detected_days,
+        )
+
+    def _ensure_custom_export_context_current(self):
+        detected_days = tuple(self.graph_page.time_selection_tab.detected_days)
+        if (
+            self.custom_export_panel.original_processed is not self.graph_page.original_processed
+            or self.custom_export_panel.detected_days != detected_days
+        ):
+            self.custom_export_panel.refresh_context(
+                self.graph_page.original_processed,
+                detected_days,
+            )
 
     def _selected_graphs(self) -> list[str]:
         return [
@@ -1482,52 +1990,165 @@ class PdfExportTab(QWidget):
                 f"Ocorreu um erro ao gerar o PDF:\n\n{str(e)}"
             )
 
-    def export_daily_pdfs(self):
-        selected_graphs = self._selected_graphs()
+    def _processed_for_dataframe(self, dataframe: pd.DataFrame) -> ProcessedData:
+        original = self.graph_page.original_processed
+        if original is None:
+            raise ValueError("Nenhuma medição original está disponível.")
 
-        if not self._validate_pdf_preflight(
-            selected_graphs,
-            require_detected_days=True,
-        ):
-            return
-
-        output_dir = QFileDialog.getExistingDirectory(
-            self,
-            "Selecionar pasta de destino dos PDFs diários"
+        return ProcessedData(
+            company=original.company,
+            city=original.city,
+            trafo=original.trafo,
+            local=original.local,
+            revision=original.revision,
+            excel_path=original.excel_path,
+            dataframe=dataframe,
+            integration_time=original.integration_time,
+            tension=original.tension,
+            equipment_type=original.equipment_type,
+            equipment_reference=original.equipment_reference,
+            equipment_value=original.equipment_value,
         )
 
-        if not output_dir:
+    def _filtered_dataframe_for_bounds(self, start, end) -> pd.DataFrame:
+        if self.graph_page.original_dataframe is None:
+            raise ValueError("Nenhuma medição original está disponível.")
+
+        dataframe = apply_time_filter(
+            self.graph_page.original_dataframe,
+            custom_time_filter(start, end),
+        )
+        if dataframe.empty:
+            raise ValueError("O intervalo selecionado não possui registros de medição.")
+        return dataframe
+
+    def _dataframe_for_days(self, days: list[DetectedDay]) -> pd.DataFrame:
+        frames = [
+            self._filtered_dataframe_for_bounds(day.start_datetime, day.end_datetime)
+            for day in days
+        ]
+        if not frames:
+            raise ValueError("Nenhum dia foi selecionado.")
+        return pd.concat(frames, ignore_index=True).sort_values("Datetime")
+
+    def _build_custom_export_tasks(self, config: dict) -> list[dict]:
+        original = self.graph_page.original_processed
+        if original is None:
+            raise ValueError("Nenhuma medição original está disponível.")
+
+        company = original.company
+
+        if config["mode"] == "daily":
+            tasks: list[dict] = []
+            for day in config["days"]:
+                dataframe = self._filtered_dataframe_for_bounds(
+                    day.start_datetime,
+                    day.end_datetime,
+                )
+                tasks.append({
+                    "label": day.label,
+                    "processed": self._processed_for_dataframe(dataframe),
+                    "filename": build_daily_pdf_filename(company, day.date),
+                })
+            return tasks
+
+        if config["scope"] == "full":
+            dataframe = self.graph_page.original_dataframe.copy()
+        elif config["scope"] == "interval":
+            dataframe = self._filtered_dataframe_for_bounds(
+                config["start"],
+                config["end"],
+            )
+        else:
+            dataframe = self._dataframe_for_days(config["days"])
+
+        return [{
+            "label": "Medição personalizada",
+            "processed": self._processed_for_dataframe(dataframe),
+            "filename": build_custom_pdf_filename(company),
+        }]
+
+    def export_custom_measurement(self):
+        if not self.graph_page.current_processed:
+            QMessageBox.warning(
+                self,
+                "Exportar medição personalizada",
+                "Nenhum gráfico foi carregado ainda."
+            )
             return
 
-        output_path = Path(output_dir)
-        if not self._validate_pdf_preflight(
-            selected_graphs,
-            output_path,
-            require_detected_days=True,
-        ):
+        if not self.graph_page.time_selection_tab.detected_days:
+            QMessageBox.warning(
+                self,
+                "Exportar medição personalizada",
+                "Nenhum dia de medição foi detectado para exportação personalizada."
+            )
             return
 
         if self.graph_page.original_processed is None:
             QMessageBox.warning(
                 self,
-                "Exportar PDF diários",
-                "Nenhuma medição original está disponível para exportação diária."
+                "Exportar medição personalizada",
+                "Nenhuma medição original está disponível para exportação personalizada."
             )
             return
 
+        self._ensure_custom_export_context_current()
+
+        config = self.custom_export_panel.build_export_config()
+        if not config:
+            return
+
+        output_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Selecionar pasta de destino"
+        )
+
+        if not output_dir:
+            return
+
+        config["output_dir"] = Path(output_dir)
+
+        if not self._validate_pdf_preflight(
+            config["graphs"],
+            config["output_dir"],
+            require_detected_days=True,
+        ):
+            return
+
+        try:
+            tasks = self._build_custom_export_tasks(config)
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Exportar medição personalizada",
+                f"Não foi possível preparar a exportação:\n\n{exc}"
+            )
+            return
+
+        if not tasks:
+            QMessageBox.warning(
+                self,
+                "Exportar medição personalizada",
+                "Nenhum arquivo foi preparado para exportação."
+            )
+            return
+
+        self._custom_export_total_files = len(tasks)
+        self._custom_export_mode = config["mode"]
+
         self.set_exporting_state(True)
         self.export_button.setText("EXPORTANDO PDF...")
-        self.export_daily_button.setText("EXPORTANDO PDFs DIÁRIOS...")
-        self.cancel_daily_button.setVisible(True)
-        self.cancel_daily_button.setEnabled(True)
-        self.status_label.setText("Preparando exportação diária. Aguarde...")
+        self.export_daily_button.setText("EXPORTANDO MEDIÇÃO...")
+        self.cancel_daily_button.setVisible(config["mode"] == "daily")
+        self.cancel_daily_button.setEnabled(config["mode"] == "daily")
+        self.status_label.setText("Preparando exportação personalizada. Aguarde...")
 
         self._daily_pdf_thread = QThread()
-        self._daily_pdf_worker = DailyPdfExportWorker(
-            original_processed=self.graph_page.original_processed,
-            detected_days=self.graph_page.time_selection_tab.detected_days,
-            selected_graphs=selected_graphs,
-            output_dir=output_path,
+        self._daily_pdf_worker = CustomPdfExportWorker(
+            export_tasks=tasks,
+            selected_graphs=config["graphs"],
+            output_dir=config["output_dir"],
         )
         self._daily_pdf_worker.moveToThread(self._daily_pdf_thread)
 
@@ -1569,9 +2190,14 @@ class PdfExportTab(QWidget):
         self._pdf_worker = None
 
     def _on_daily_pdf_progress(self, current: int, total: int, day_label: str):
-        self.status_label.setText(
-            f"Exportando PDF diário {current} de {total}...\n{day_label}"
-        )
+        if self._custom_export_mode == "daily":
+            self.status_label.setText(
+                f"Exportando PDF diário {current} de {total}...\n{day_label}"
+            )
+        else:
+            self.status_label.setText(
+                f"Exportando PDF personalizado {current} de {total}...\n{day_label}"
+            )
 
     def _on_daily_pdf_finished(self, successes: list, failures: list, canceled: bool):
         self.set_exporting_state(False)
@@ -1582,14 +2208,14 @@ class PdfExportTab(QWidget):
                 "Exportação cancelada",
                 "Exportação cancelada pelo usuário.\n"
                 f"PDFs gerados até o cancelamento: {len(successes)} de "
-                f"{len(self.graph_page.time_selection_tab.detected_days)}."
+                f"{self._custom_export_total_files}."
             )
             return
 
         if failures:
             QMessageBox.warning(
                 self,
-                "Exportação diária concluída com avisos",
+                "Exportação personalizada concluída com avisos",
                 "PDFs gerados com sucesso: "
                 f"{len(successes)}\n\nFalhas:\n" + "\n".join(str(item) for item in failures)
             )
@@ -1597,8 +2223,8 @@ class PdfExportTab(QWidget):
 
         QMessageBox.information(
             self,
-            "PDFs diários gerados",
-            f"{len(successes)} PDF(s) diário(s) gerado(s) com sucesso."
+            "Exportação personalizada concluída",
+            f"{len(successes)} PDF(s) gerado(s) com sucesso."
         )
 
     def _clear_daily_pdf_thread_refs(self):
@@ -2122,6 +2748,7 @@ class GraphPage(QWidget):
         self.time_selection_tab.clear_loaded_data()
         self._update_filter_indicator()
         self.pdf_export_tab.select_default()
+        self.pdf_export_tab.refresh_custom_export_context()
         self.tabs.setCurrentIndex(0)
 
     def load_processed_data(self, processed: ProcessedData):
@@ -2150,6 +2777,7 @@ class GraphPage(QWidget):
 
             try:
                 self.time_selection_tab.load_processed_data(self.original_processed)
+                self.pdf_export_tab.refresh_custom_export_context()
                 self._update_filter_indicator()
 
                 figures, df = self._rebuild_figures_for_range(

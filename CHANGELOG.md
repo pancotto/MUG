@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.7
+
+- Replaced fixed daily PDF export with a custom measurement export workflow.
+- Added a dedicated "EXPORTAR MEDIÇÃO PERSONALIZADA" dialog.
+- Added export scopes for full measurement, custom interval and selected days.
+- Added export modes for single PDF and PDFs separated by day.
+- Added graph selection and output folder selection inside the custom export dialog.
+- Added validation and summary preview before custom export.
+- Added custom single PDF filename pattern "GR - EMPRESA - PERSONALIZADA - YYYYMMDD-HHMMSS.pdf".
+- Preserved standard single PDF export behavior for the active SELECAO interval.
+
 ## v1.3.6
 
 - Renamed the SELECAO day dropdown placeholder to Medicao Completa.

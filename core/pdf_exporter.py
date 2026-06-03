@@ -470,6 +470,12 @@ def build_daily_pdf_filename(company: str | None, day_value) -> str:
     return f"GR - {safe_company} - {day}.pdf"
 
 
+def build_custom_pdf_filename(company: str | None, timestamp=None) -> str:
+    safe_company = sanitize_pdf_filename_part(company)
+    value = pd.Timestamp(timestamp or datetime.now()).strftime("%Y%m%d-%H%M%S")
+    return f"GR - {safe_company} - PERSONALIZADA - {value}.pdf"
+
+
 def export_figures_to_pdf(
     processed,
     selected_graphs: list[str],
