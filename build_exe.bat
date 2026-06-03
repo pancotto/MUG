@@ -3,8 +3,10 @@ title MUG Build System
 
 cd /d "%~dp0"
 
+set /p MUG_VERSION=<VERSION
+
 echo ==========================================
-echo        BUILDING MUG v1.3.4
+echo        BUILDING MUG %MUG_VERSION%
 echo ==========================================
 echo.
 
@@ -13,15 +15,27 @@ if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 
 echo.
-echo Gerando executavel MUG v1.3.4...
+echo Gerando executavel MUG %MUG_VERSION%...
 echo.
 
-pyinstaller MUG.spec --clean
+set "PYTHON_EXE=%~dp0.venv\Scripts\python.exe"
+
+if exist "%PYTHON_EXE%" (
+    "%PYTHON_EXE%" -m PyInstaller MUG.spec --clean
+) else (
+    pyinstaller MUG.spec --clean
+)
+
+if errorlevel 1 (
+    echo.
+    echo ==========================================
+    echo        BUILD FALHOU
+    echo ==========================================
+    exit /b 1
+)
 
 echo.
 echo ==========================================
 echo       BUILD FINALIZADO COM SUCESSO
 echo ==========================================
 echo.
-
-pause

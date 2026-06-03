@@ -12,6 +12,13 @@ from PySide6.QtWidgets import (
 from core.update_checker import UpdateChecker
 
 
+def format_app_version(version: str) -> str:
+    clean = str(version or "").strip()
+    if clean.lower().startswith("v"):
+        return f"v{clean[1:]}"
+    return f"v{clean}"
+
+
 class AboutDialog(QDialog):
 
     def __init__(
@@ -23,6 +30,7 @@ class AboutDialog(QDialog):
         super().__init__(parent)
 
         self.available_update = available_update
+        display_version = format_app_version(app_version)
 
         print("\n[ABOUT DIALOG]")
         print("available_update:")
@@ -66,7 +74,7 @@ class AboutDialog(QDialog):
 
         content = QLabel(
             f"Monitoramento e Análise Gráfica de Grandezas Elétricas<br><br>"
-            f"<b>Versão:</b> v{app_version}<br>"
+            f"<b>Versão:</b> {display_version}<br>"
             f"<b>Copyright:</b> (C) 2026 ECOCEL<br><br>"
             f"Aplicação desktop para análise gráfica de grandezas elétricas, "
             f"processamento de arquivos Primata/Embrasul e exportação de gráficos em PDF.<br><br>"
@@ -91,7 +99,7 @@ class AboutDialog(QDialog):
 
             update_label = QLabel(
                 f"Nova versão disponível: "
-                f"v{self.available_update['version']}"
+                f"{format_app_version(self.available_update['version'])}"
             )
 
             update_label.setStyleSheet("""

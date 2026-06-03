@@ -10,7 +10,7 @@ except Exception:
     get_app_assets = None
 
 
-APP_VERSION_FALLBACK = "1.3.0"
+APP_VERSION_FALLBACK = "1.3.5"
 
 
 def get_app_version() -> str:
@@ -43,6 +43,13 @@ def get_app_version() -> str:
             pass
 
     return APP_VERSION_FALLBACK
+
+
+def format_app_version(version: str) -> str:
+    clean = str(version or "").strip()
+    if clean.lower().startswith("v"):
+        return f"v{clean[1:]}"
+    return f"v{clean}"
 
 
 from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
@@ -296,7 +303,7 @@ class InputPage(QWidget):
             form_layout.addLayout(logos_layout)
 
         self.version_label = ClickableLabel()
-        self.version_label.setText(f"v{get_app_version()}")
+        self.version_label.setText(format_app_version(get_app_version()))
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.version_label.setToolTip("Sobre o MUG")
         self.version_label.setStyleSheet("""
@@ -697,7 +704,7 @@ class InputPage(QWidget):
 
         dialog = AboutDialog(
             self,
-            app_version=get_app_version(),
+            app_version=format_app_version(get_app_version()),
             available_update=getattr(
                 self.main_window,
                 "available_update",

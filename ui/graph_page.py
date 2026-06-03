@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 
 from PySide6.QtCore import QObject, QUrl, Signal, Slot, QThread, Qt
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -18,6 +19,10 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QFileDialog,
     QProgressBar,
+    QComboBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
 )
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -38,10 +43,32 @@ from core.graph_builder import (
 )
 from core.models import ProcessedData
 from core.pdf_exporter import export_figures_to_pdf, GRAPH_EXPORT_ORDER
+from core.time_filter import (
+    DetectedDay,
+    FIRST_RECORD_LABEL,
+    FIRST_RECORD_OF_DAY,
+    LAST_RECORD_LABEL,
+    LAST_RECORD_OF_DAY,
+    TimeFilter,
+    apply_time_filter,
+    custom_time_filter,
+    day_bounds_for_date,
+    detect_measurement_days,
+    filter_matches_measurement_bounds,
+    format_datetime,
+    format_duration,
+    format_time,
+    full_measurement_filter,
+    get_measurement_bounds,
+    measurement_date_options,
+    resolve_time_option,
+    same_time_filter,
+    time_options_for_integration,
+)
 from ui.about_dialog import AboutDialog
 
 
-APP_VERSION_FALLBACK = "1.3.4"
+APP_VERSION_FALLBACK = "1.3.5"
 
 
 def get_app_version() -> str:
@@ -74,6 +101,13 @@ def get_app_version() -> str:
             pass
 
     return APP_VERSION_FALLBACK
+
+
+def format_app_version(version: str) -> str:
+    clean = str(version or "").strip()
+    if clean.lower().startswith("v"):
+        return f"v{clean[1:]}"
+    return f"v{clean}"
 
 
 DEFAULT_PDF_GRAPHS = {
@@ -379,6 +413,518 @@ class PdfExportWorker(QObject):
         except Exception as exc:
             self.error.emit(str(exc))
 
+
+class TimeSelectionTab(QWidget):
+    def __init__(self, graph_page):
+        super().__init__()
+        self.graph_page = graph_page
+        self.detected_days: tuple[DetectedDay, ...] = tuple()
+        self._updating_controls = False
+        self._build_ui()
+
+    def _build_ui(self):
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #000000;
+                color: #f1f1f1;
+                font-family: Arial;
+            }
+            QLabel {
+                color: #f1f1f1;
+                background-color: #000000;
+            }
+            QTableWidget {
+                background-color: #111111;
+                color: #f1f1f1;
+                gridline-color: #333333;
+                border: 1px solid #222222;
+            }
+            QHeaderView::section {
+                background-color: #2d6cdf;
+                color: #ffffff;
+                padding: 6px;
+                border: none;
+                font-weight: bold;
+            }
+            QComboBox {
+                background-color: #111111;
+                color: #f1f1f1;
+                border: 1px solid #2d6cdf;
+                border-radius: 4px;
+                padding: 7px;
+                min-height: 26px;
+            }
+            QPushButton {
+                background-color: #2d6cdf;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 11px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1f5fbf;
+            }
+            QPushButton:disabled {
+                background-color: #173f7d;
+                color: #d0d0d0;
+            }
+            QTableWidget::item:selected {
+                background-color: #3a3a3a;
+                color: #ffffff;
+            }
+        """)
+
+        root_layout = QVBoxLayout()
+        root_layout.setContentsMargins(20, 20, 20, 20)
+        root_layout.setSpacing(14)
+
+        title = QLabel("SELEÇÃO")
+        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+        root_layout.addWidget(title)
+
+        summary_layout = QHBoxLayout()
+        summary_layout.setSpacing(10)
+        self.period_summary_label = self._create_summary_card(
+            "Período da Medição",
+            "Carregue uma medição",
+        )
+        self.duration_summary_label = self._create_summary_card(
+            "Duração",
+            "-"
+        )
+        self.integration_summary_label = self._create_summary_card(
+            "Integralização",
+            "-"
+        )
+        summary_layout.addWidget(self.period_summary_label, 2)
+        summary_layout.addWidget(self.duration_summary_label, 1)
+        summary_layout.addWidget(self.integration_summary_label, 1)
+        root_layout.addLayout(summary_layout)
+
+        detected_title = QLabel("SELECIONAR DIA")
+        detected_title.setStyleSheet("font-size: 16px; font-weight: bold; margin-top: 6px;")
+        root_layout.addWidget(detected_title)
+
+        self.day_combo = QComboBox()
+        self.day_combo.currentIndexChanged.connect(self._on_day_selected)
+        root_layout.addWidget(self.day_combo)
+
+        self.days_table = QTableWidget(0, 4)
+        self.days_table.setHorizontalHeaderLabels(
+            ["Data", "Hora Inicial", "Hora Final", "Status"]
+        )
+        self.days_table.verticalHeader().setVisible(False)
+        self.days_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.days_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.days_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.days_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.days_table.setMinimumHeight(170)
+        self.days_table.cellClicked.connect(self._on_day_row_clicked)
+        self.days_table.cellDoubleClicked.connect(self._on_day_row_double_clicked)
+        root_layout.addWidget(self.days_table)
+
+        datetime_layout = QHBoxLayout()
+        self.start_date_combo = QComboBox()
+        datetime_layout.addWidget(QLabel("Data Inicial"))
+        datetime_layout.addWidget(self.start_date_combo, 1)
+
+        self.start_time_combo = QComboBox()
+        datetime_layout.addWidget(QLabel("Hora Inicial"))
+        datetime_layout.addWidget(self.start_time_combo, 1)
+
+        self.end_date_combo = QComboBox()
+        datetime_layout.addWidget(QLabel("Data Final"))
+        datetime_layout.addWidget(self.end_date_combo, 1)
+
+        self.end_time_combo = QComboBox()
+        datetime_layout.addWidget(QLabel("Hora Final"))
+        datetime_layout.addWidget(self.end_time_combo, 1)
+        root_layout.addLayout(datetime_layout)
+
+        action_layout = QHBoxLayout()
+        self.full_measurement_button = QPushButton("MEDIÇÃO COMPLETA")
+        self.full_measurement_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2d7d46;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 11px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #25673a;
+            }
+            QPushButton:disabled {
+                background-color: #1f5131;
+                color: #d0d0d0;
+            }
+        """)
+        self.full_measurement_button.clicked.connect(self.prepare_full_measurement_selection)
+        action_layout.addWidget(self.full_measurement_button)
+
+        self.apply_button = QPushButton("APLICAR SELEÇÃO")
+        self.apply_button.clicked.connect(self.apply_selection)
+        action_layout.addWidget(self.apply_button)
+
+        self.clear_button = QPushButton("LIMPAR SELEÇÃO")
+        self.clear_button.setStyleSheet("""
+            QPushButton {
+                background-color: #8b1e1e;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 11px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #a32626;
+            }
+            QPushButton:pressed {
+                background-color: #6f1818;
+            }
+            QPushButton:disabled {
+                background-color: #4f1717;
+                color: #d0d0d0;
+            }
+        """)
+        self.clear_button.clicked.connect(self.clear_selection)
+        action_layout.addWidget(self.clear_button)
+        root_layout.addLayout(action_layout)
+
+        self.processing_label = QLabel("Atualizando gráficos...")
+        self.processing_label.setVisible(False)
+        self.processing_label.setStyleSheet("font-size: 13px; color: #bbbbbb; font-weight: bold;")
+        self.processing_bar = QProgressBar()
+        self.processing_bar.setRange(0, 0)
+        self.processing_bar.setVisible(False)
+        root_layout.addWidget(self.processing_label)
+        root_layout.addWidget(self.processing_bar)
+
+        self.active_interval_label = QLabel("Intervalo Ativo\nMedição Completa")
+        self.active_interval_label.setWordWrap(True)
+        self.active_interval_label.setStyleSheet("""
+            QLabel {
+                background-color: #111111;
+                border: 1px solid #2d6cdf;
+                border-radius: 8px;
+                padding: 9px 12px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+        """)
+        root_layout.addWidget(self.active_interval_label)
+
+        root_layout.addStretch()
+        self.setLayout(root_layout)
+        self.set_enabled(False)
+
+    @staticmethod
+    def _create_summary_card(title: str, value: str) -> QLabel:
+        label = QLabel(f"<b>{title}</b><br>{value}")
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setMinimumHeight(58)
+        label.setStyleSheet("""
+            QLabel {
+                background-color: #111111;
+                border: 1px solid #222222;
+                border-radius: 8px;
+                color: #f1f1f1;
+                font-size: 13px;
+                padding: 10px;
+            }
+        """)
+        return label
+
+    def set_enabled(self, enabled: bool):
+        for widget in [
+            self.days_table,
+            self.full_measurement_button,
+            self.day_combo,
+            self.start_date_combo,
+            self.start_time_combo,
+            self.end_date_combo,
+            self.end_time_combo,
+            self.apply_button,
+            self.clear_button,
+        ]:
+            widget.setEnabled(enabled)
+
+    def set_processing_state(self, processing: bool):
+        self.set_enabled(not processing)
+        self.processing_label.setVisible(processing)
+        self.processing_bar.setVisible(processing)
+
+    def load_processed_data(self, processed: ProcessedData):
+        dataframe = processed.dataframe
+        self.detected_days = detect_measurement_days(
+            dataframe,
+            processed.integration_time,
+        )
+        start, end = get_measurement_bounds(dataframe)
+        dates = measurement_date_options(dataframe)
+        times = time_options_for_integration(processed.integration_time)
+
+        self._updating_controls = True
+        try:
+            self.period_summary_label.setText(
+                "<b>Período da Medição</b><br>"
+                f"{format_datetime(start)} \u2192 {format_datetime(end)}"
+            )
+            self.duration_summary_label.setText(
+                "<b>Duração</b><br>"
+                f"{format_duration(start, end)}"
+            )
+            self.integration_summary_label.setText(
+                "<b>Integralização</b><br>"
+                f"{processed.integration_time} segundos"
+            )
+
+            self._populate_days_table()
+            self.day_combo.clear()
+            self.day_combo.addItem("SELECIONAR DIA", None)
+            for index, day in enumerate(self.detected_days):
+                self.day_combo.addItem(day.label, index)
+
+            self._populate_date_combos(dates)
+            self._populate_time_combos(times)
+            self._set_datetime_controls(start, end)
+        finally:
+            self._updating_controls = False
+
+        self.set_enabled(True)
+        self.update_active_interval(self.graph_page.current_time_filter)
+
+    def clear_loaded_data(self):
+        self.detected_days = tuple()
+        self.days_table.setRowCount(0)
+        self.day_combo.clear()
+        self.start_date_combo.clear()
+        self.start_time_combo.clear()
+        self.end_date_combo.clear()
+        self.end_time_combo.clear()
+        self.period_summary_label.setText(
+            "<b>Período da Medição</b><br>Carregue uma medição"
+        )
+        self.duration_summary_label.setText("<b>Duração</b><br>-")
+        self.integration_summary_label.setText("<b>Integralização</b><br>-")
+        self.active_interval_label.setText("Intervalo Ativo\nMedição Completa")
+        self.set_enabled(False)
+
+    def _populate_days_table(self):
+        self.days_table.setRowCount(len(self.detected_days))
+
+        for row, day in enumerate(self.detected_days):
+            values = [
+                day.label,
+                format_time(day.start_datetime),
+                format_time(day.end_datetime),
+                self._display_status(day.status),
+            ]
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.days_table.setItem(row, column, item)
+
+    def _populate_date_combos(self, dates: tuple[pd.Timestamp, ...]):
+        self.start_date_combo.clear()
+        self.end_date_combo.clear()
+
+        for value in dates:
+            label = pd.Timestamp(value).strftime("%d/%m/%Y")
+            iso_value = pd.Timestamp(value).strftime("%Y-%m-%d")
+            self.start_date_combo.addItem(label, iso_value)
+            self.end_date_combo.addItem(label, iso_value)
+
+    def _populate_time_combos(self, times: tuple[str, ...]):
+        self.start_time_combo.clear()
+        self.end_time_combo.clear()
+
+        for combo in [self.start_time_combo, self.end_time_combo]:
+            combo.addItem(FIRST_RECORD_LABEL, FIRST_RECORD_OF_DAY)
+            combo.addItem(LAST_RECORD_LABEL, LAST_RECORD_OF_DAY)
+
+        for value in times:
+            self.start_time_combo.addItem(value, value)
+            self.end_time_combo.addItem(value, value)
+
+    def _set_datetime_controls(self, start, end):
+        start_timestamp = pd.Timestamp(start)
+        end_timestamp = pd.Timestamp(end)
+
+        self._set_combo_value(
+            self.start_date_combo,
+            pd.Timestamp(start_timestamp).strftime("%Y-%m-%d"),
+            pd.Timestamp(start_timestamp).strftime("%d/%m/%Y"),
+        )
+        self._set_combo_value(
+            self.end_date_combo,
+            pd.Timestamp(end_timestamp).strftime("%Y-%m-%d"),
+            pd.Timestamp(end_timestamp).strftime("%d/%m/%Y"),
+        )
+
+        self._set_time_combo_value(self.start_time_combo, start_timestamp)
+        self._set_time_combo_value(self.end_time_combo, end_timestamp)
+
+    @staticmethod
+    def _set_combo_value(combo: QComboBox, data_value: str, display_value: str):
+        index = combo.findData(data_value)
+        if index < 0:
+            combo.addItem(display_value, data_value)
+            combo.model().sort(0)
+            index = combo.findData(data_value)
+
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def _set_time_combo_value(self, combo: QComboBox, timestamp: pd.Timestamp):
+        timestamp = pd.Timestamp(timestamp)
+        date_value = timestamp.strftime("%Y-%m-%d")
+
+        try:
+            day_start, day_end = day_bounds_for_date(self.detected_days, date_value)
+            if timestamp == pd.Timestamp(day_start):
+                index = combo.findData(FIRST_RECORD_OF_DAY)
+                if index >= 0:
+                    combo.setCurrentIndex(index)
+                    return
+            if timestamp == pd.Timestamp(day_end):
+                index = combo.findData(LAST_RECORD_OF_DAY)
+                if index >= 0:
+                    combo.setCurrentIndex(index)
+                    return
+        except Exception:
+            pass
+
+        time_value = timestamp.strftime("%H:%M:%S")
+        self._set_combo_value(combo, time_value, time_value)
+
+    def _on_day_selected(self, index: int):
+        if self._updating_controls:
+            return
+
+        if index <= 0:
+            self.prepare_full_measurement_selection()
+            return
+
+        day_index = self.day_combo.currentData()
+        if day_index is None:
+            return
+
+        self._select_day(int(day_index))
+
+    def _on_day_row_clicked(self, row: int, column: int):
+        self._select_day(row)
+
+    def _on_day_row_double_clicked(self, row: int, column: int):
+        self._select_day(row)
+        self.apply_selection()
+
+    def _select_day(self, day_index: int):
+        if day_index < 0 or day_index >= len(self.detected_days):
+            return
+
+        selected_day = self.detected_days[day_index]
+        self._set_datetime_controls(
+            selected_day.start_datetime,
+            selected_day.end_datetime,
+        )
+
+        self.days_table.selectRow(day_index)
+
+        combo_index = self.day_combo.findData(day_index)
+        if combo_index >= 0 and self.day_combo.currentIndex() != combo_index:
+            self._updating_controls = True
+            try:
+                self.day_combo.setCurrentIndex(combo_index)
+            finally:
+                self._updating_controls = False
+
+    def apply_selection(self):
+        try:
+            start_date = self.start_date_combo.currentData()
+            start_time = self.start_time_combo.currentData()
+            end_date = self.end_date_combo.currentData()
+            end_time = self.end_time_combo.currentData()
+            if not start_date or not start_time or not end_date or not end_time:
+                raise ValueError("Selecione data e hora inicial/final válidas.")
+
+            start = resolve_time_option(self.detected_days, start_date, start_time)
+            end = resolve_time_option(self.detected_days, end_date, end_time)
+            selected_filter = custom_time_filter(start, end)
+
+            if (
+                self.graph_page.original_dataframe is not None
+                and filter_matches_measurement_bounds(
+                    self.graph_page.original_dataframe,
+                    selected_filter,
+                )
+            ):
+                selected_filter = full_measurement_filter(
+                    self.graph_page.original_dataframe
+                )
+
+            self.graph_page.apply_time_filter(selected_filter)
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Seleção inválida",
+                f"Não foi possível aplicar o intervalo selecionado:\n\n{exc}"
+            )
+
+    def clear_selection(self):
+        self.graph_page.clear_time_filter()
+
+    def prepare_full_measurement_selection(self):
+        if self.graph_page.original_dataframe is None:
+            return
+
+        start, end = get_measurement_bounds(self.graph_page.original_dataframe)
+        self.days_table.clearSelection()
+
+        self._updating_controls = True
+        try:
+            self.day_combo.setCurrentIndex(0)
+            self._set_datetime_controls(start, end)
+        finally:
+            self._updating_controls = False
+
+    def update_active_interval(self, time_filter: TimeFilter | None):
+        if time_filter is None or time_filter.is_full_measurement:
+            if self.graph_page.original_dataframe is not None:
+                try:
+                    start, end = get_measurement_bounds(
+                        self.graph_page.original_dataframe
+                    )
+                    self._set_datetime_controls(start, end)
+                except Exception:
+                    pass
+            self.active_interval_label.setText(
+                "Intervalo Ativo\n"
+                "Medição Completa\n"
+                f"{format_datetime(start)} \u2192 {format_datetime(end)}"
+            )
+            return
+
+        start = pd.Timestamp(time_filter.start_datetime)
+        end = pd.Timestamp(time_filter.end_datetime)
+        self.active_interval_label.setText(
+            "Intervalo Ativo\n"
+            f"{format_datetime(start)} \u2192 {format_datetime(end)}\n"
+            f"Duração: {format_duration(start, end)}"
+        )
+
+    @staticmethod
+    def _display_status(status: str) -> str:
+        return {
+            "Complete": "Completo",
+            "Incomplete": "Incompleto",
+        }.get(status, status)
 
 class PdfExportTab(QWidget):
     def __init__(self, graph_page):
@@ -735,9 +1281,12 @@ class GraphPage(QWidget):
         super().__init__()
         self.main_window = main_window
 
+        self.original_processed: ProcessedData | None = None
+        self.original_dataframe: pd.DataFrame | None = None
         self.current_processed: ProcessedData | None = None
         self.current_figures: dict[str, go.Figure] = {}
         self.webviews: dict[str, QWebEngineView] = {}
+        self.current_time_filter: TimeFilter | None = None
 
         self.syncing_zoom = False
         self.current_x_min = None
@@ -813,6 +1362,12 @@ class GraphPage(QWidget):
             self.tabs.addTab(webview, TAB_DISPLAY_NAMES.get(tab_name, tab_name))
             self.webviews[tab_name] = webview
 
+        self.time_selection_tab = TimeSelectionTab(self)
+        self.selection_tab_index = self.tabs.addTab(
+            self.time_selection_tab,
+            "SELEÇÃO"
+        )
+
         self.pdf_export_tab = PdfExportTab(self)
         self.export_pdf_tab_index = self.tabs.addTab(
             self.pdf_export_tab,
@@ -878,7 +1433,7 @@ class GraphPage(QWidget):
         )
 
         self.version_button = QPushButton(
-            f"v{get_app_version()}"
+            format_app_version(get_app_version())
         )
 
         self.version_button.setCursor(
@@ -926,14 +1481,9 @@ class GraphPage(QWidget):
         )
 
     def show_about_dialog(self):
-
-        print("\n[ABOUT DIALOG]")
-        print("available_update:")
-        print(self.main_window.available_update)
-
         dialog = AboutDialog(
             self,
-            app_version=get_app_version(),
+            app_version=format_app_version(get_app_version()),
             available_update=getattr(
                 self.main_window,
                 "available_update",
@@ -1087,6 +1637,92 @@ class GraphPage(QWidget):
 
         return figures, df
 
+    def _build_processed_with_dataframe(self, dataframe: pd.DataFrame) -> ProcessedData:
+        if self.original_processed is None:
+            raise ValueError("Nenhuma medição original está carregada.")
+
+        return ProcessedData(
+            company=self.original_processed.company,
+            city=self.original_processed.city,
+            trafo=self.original_processed.trafo,
+            local=self.original_processed.local,
+            revision=self.original_processed.revision,
+            excel_path=self.original_processed.excel_path,
+            dataframe=dataframe,
+            integration_time=self.original_processed.integration_time,
+            tension=self.original_processed.tension,
+            equipment_type=self.original_processed.equipment_type,
+            equipment_reference=self.original_processed.equipment_reference,
+            equipment_value=self.original_processed.equipment_value,
+        )
+
+    def _refresh_graphs_for_current_processed(self):
+        if self.current_processed is None:
+            return
+
+        figures, df = self._rebuild_figures_for_range(
+            self.current_processed,
+            None,
+            None,
+        )
+        self.current_figures = figures
+
+        for tab_name, fig in figures.items():
+            self._render_webview_figure(tab_name, fig)
+
+    def apply_time_filter(self, time_filter: TimeFilter):
+        if self.original_dataframe is None or self.original_processed is None:
+            return
+
+        if same_time_filter(self.current_time_filter, time_filter):
+            return
+
+        self.time_selection_tab.set_processing_state(True)
+        QApplication.processEvents()
+
+        try:
+            filtered_dataframe = apply_time_filter(
+                self.original_dataframe,
+                time_filter,
+            )
+
+            if filtered_dataframe.empty:
+                QMessageBox.warning(
+                    self,
+                    "Seleção sem dados",
+                    "O intervalo selecionado não possui registros de medição."
+                )
+                return
+
+            self.current_time_filter = time_filter
+            self.current_processed = self._build_processed_with_dataframe(
+                filtered_dataframe
+            )
+            self.current_x_min = None
+            self.current_x_max = None
+            self._refresh_graphs_for_current_processed()
+            self._update_filter_indicator()
+            self.time_selection_tab.update_active_interval(self.current_time_filter)
+        finally:
+            self.time_selection_tab.set_processing_state(False)
+
+    def clear_time_filter(self):
+        if self.original_dataframe is None:
+            return
+
+        if (
+            self.current_time_filter is not None
+            and self.current_time_filter.is_full_measurement
+        ):
+            return
+
+        self.apply_time_filter(
+            full_measurement_filter(self.original_dataframe)
+        )
+
+    def _update_filter_indicator(self):
+        return None
+
     def _on_zoom_changed(self, source_name, x_min_str, x_max_str):
         if self.syncing_zoom:
             return
@@ -1141,8 +1777,11 @@ class GraphPage(QWidget):
             self.syncing_zoom = False
 
     def clear_loaded_data(self):
+        self.original_processed = None
+        self.original_dataframe = None
         self.current_processed = None
         self.current_figures = {}
+        self.current_time_filter = None
         self.current_x_min = None
         self.current_x_max = None
 
@@ -1151,16 +1790,44 @@ class GraphPage(QWidget):
                 "<html><body style='background:#000000;color:#f1f1f1;'></body></html>"
             )
 
+        self.time_selection_tab.clear_loaded_data()
+        self._update_filter_indicator()
         self.pdf_export_tab.select_default()
         self.tabs.setCurrentIndex(0)
 
     def load_processed_data(self, processed: ProcessedData):
-            self.current_processed = processed
+            original_dataframe = processed.dataframe.copy(deep=True)
+            self.original_dataframe = original_dataframe
+            self.original_processed = ProcessedData(
+                company=processed.company,
+                city=processed.city,
+                trafo=processed.trafo,
+                local=processed.local,
+                revision=processed.revision,
+                excel_path=processed.excel_path,
+                dataframe=original_dataframe,
+                integration_time=processed.integration_time,
+                tension=processed.tension,
+                equipment_type=processed.equipment_type,
+                equipment_reference=processed.equipment_reference,
+                equipment_value=processed.equipment_value,
+            )
+            self.current_time_filter = full_measurement_filter(original_dataframe)
+            self.current_processed = self._build_processed_with_dataframe(
+                apply_time_filter(original_dataframe, self.current_time_filter)
+            )
             self.current_x_min = None
             self.current_x_max = None
 
             try:
-                figures, df = self._rebuild_figures_for_range(processed, None, None)
+                self.time_selection_tab.load_processed_data(self.original_processed)
+                self._update_filter_indicator()
+
+                figures, df = self._rebuild_figures_for_range(
+                    self.current_processed,
+                    None,
+                    None,
+                )
                 self.current_figures = figures
 
                 for tab_name, fig in figures.items():

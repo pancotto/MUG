@@ -2,7 +2,7 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.3.4**
+Current version: **v1.3.5**
 
 ---
 
@@ -74,6 +74,9 @@ Features:
 
 - Dark mode interface
 - Responsive graphical layout
+- Global SELEÇÃO tab for measurement interval selection
+- Detected days table with complete/incomplete status
+- Measurement-date dropdowns and integration-based time dropdowns
 - Maximized startup window
 - Unified About dialog
 - Automatic uppercase formatting for operational fields
@@ -86,6 +89,7 @@ Features:
 # 📄 PDF export
 
 - Export selected graphs only
+- Export respects the active selected measurement interval
 - A4 landscape layout
 - One graph per page
 - Default graph preset selection
