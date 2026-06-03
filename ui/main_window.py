@@ -158,7 +158,7 @@ class MainWindow(QMainWindow):
                 f"Nova versão disponível!\n\n"
                 f"Versão atual: v{current_version}\n"
                 f"Nova versão: v{update['version']}\n\n"
-                f"Deseja acessar a página de download?"
+                f"Deseja baixar o instalador da nova versão?"
             )
 
             msg_box = QMessageBox(self)
