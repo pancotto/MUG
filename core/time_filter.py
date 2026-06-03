@@ -153,6 +153,29 @@ def filter_matches_measurement_bounds(dataframe: pd.DataFrame, time_filter: Time
     )
 
 
+def selected_day_indexes_for_range(
+    detected_days: tuple[DetectedDay, ...],
+    start_date: str | pd.Timestamp | None,
+    end_date: str | pd.Timestamp | None,
+) -> tuple[int, ...]:
+    if not start_date or not end_date:
+        return tuple()
+
+    start = pd.Timestamp(start_date).normalize()
+    end = pd.Timestamp(end_date).normalize()
+
+    if end < start:
+        return tuple()
+
+    indexes: list[int] = []
+    for index, day in enumerate(detected_days):
+        value = pd.Timestamp(day.date).normalize()
+        if start <= value <= end:
+            indexes.append(index)
+
+    return tuple(indexes)
+
+
 def apply_time_filter(dataframe: pd.DataFrame, time_filter: TimeFilter) -> pd.DataFrame:
     if time_filter.is_full_measurement:
         return dataframe.copy()

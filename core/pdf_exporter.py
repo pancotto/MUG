@@ -1,6 +1,7 @@
 from pathlib import Path
 import io
 import os
+import re
 import sys
 import tempfile
 from datetime import datetime
@@ -454,6 +455,19 @@ def build_pdf_filename(company: str, revision: str) -> str:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     safe_company = company.strip().replace("/", "-").replace("\\", "-")
     return f"GR - {safe_company} - {timestamp} - REV{revision}.pdf"
+
+
+def sanitize_pdf_filename_part(value: str | None, fallback: str = "MEDICAO") -> str:
+    clean = str(value or "").strip().upper()
+    clean = re.sub(r'[<>:"/\\|?*]+', "-", clean)
+    clean = re.sub(r"\s+", " ", clean).strip(" .-")
+    return clean or fallback
+
+
+def build_daily_pdf_filename(company: str | None, day_value) -> str:
+    safe_company = sanitize_pdf_filename_part(company)
+    day = pd.Timestamp(day_value).strftime("%Y%m%d")
+    return f"GR - {safe_company} - {day}.pdf"
 
 
 def export_figures_to_pdf(

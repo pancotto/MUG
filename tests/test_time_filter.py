@@ -12,6 +12,7 @@ from core.time_filter import (
     measurement_date_options,
     resolve_time_option,
     same_time_filter,
+    selected_day_indexes_for_range,
     time_options_for_integration,
 )
 
@@ -179,6 +180,57 @@ def test_filter_matches_measurement_bounds_detects_prepared_full_interval():
 
     assert filter_matches_measurement_bounds(dataframe, full_bounds_filter)
     assert not filter_matches_measurement_bounds(dataframe, partial_filter)
+
+
+def test_selected_day_indexes_for_range_includes_start_and_end_dates():
+    dataframe = _dataframe(
+        [
+            "2026-04-29 00:00:00",
+            "2026-04-30 00:00:00",
+            "2026-05-01 00:00:00",
+            "2026-05-02 00:00:00",
+        ]
+    )
+    days = detect_measurement_days(dataframe, integration_time=60)
+
+    assert selected_day_indexes_for_range(
+        days,
+        "2026-04-30",
+        "2026-05-01",
+    ) == (1, 2)
+
+
+def test_selected_day_indexes_for_full_measurement_range_selects_all_days():
+    dataframe = _dataframe(
+        [
+            "2026-04-29 08:00:00",
+            "2026-04-30 00:00:00",
+            "2026-05-01 18:00:00",
+        ]
+    )
+    days = detect_measurement_days(dataframe, integration_time=60)
+
+    assert selected_day_indexes_for_range(
+        days,
+        "2026-04-29",
+        "2026-05-01",
+    ) == (0, 1, 2)
+
+
+def test_selected_day_indexes_for_invalid_range_returns_empty_selection():
+    dataframe = _dataframe(
+        [
+            "2026-04-29 00:00:00",
+            "2026-04-30 00:00:00",
+        ]
+    )
+    days = detect_measurement_days(dataframe, integration_time=60)
+
+    assert selected_day_indexes_for_range(
+        days,
+        "2026-04-30",
+        "2026-04-29",
+    ) == tuple()
 
 
 def test_same_time_filter_detects_redundant_full_and_custom_filters():

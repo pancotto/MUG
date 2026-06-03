@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.6
+
+- Renamed the SELECAO day dropdown placeholder to Medicao Completa.
+- Added gray highlighting for the full measurement prepared range.
+- Added gray highlighting for prepared multi-day date ranges.
+- Added daily PDF export using detected measurement days.
+- Daily PDFs use each day's actual first and last measurement timestamp.
+- Daily PDF export preserves the active applied interval after completion.
+- Added cooperative cancellation for daily PDF export.
+- Updated daily PDF filenames to the "GR - EMPRESA - YYYYMMDD.pdf" pattern.
+- Kept single PDF export behavior and layout unchanged.
+
 ## v1.3.5
 
 - Added SELECAO tab for global time interval selection.
