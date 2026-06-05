@@ -10,7 +10,7 @@ except Exception:
     get_app_assets = None
 
 
-APP_VERSION_FALLBACK = "1.3.7"
+APP_VERSION_FALLBACK = "1.3.8"
 
 
 def get_app_version() -> str:

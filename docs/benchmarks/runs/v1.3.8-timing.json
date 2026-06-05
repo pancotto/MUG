@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "run_id": "v1.3.8-timing",
+  "created_at": "2026-06-05T08:57:58",
+  "dataset": {
+    "path": "benchmarks\\datasets\\primata.txt",
+    "rows": 33603,
+    "columns": 65,
+    "integration_time_seconds": 15,
+    "start": "2026-01-27 15:00:00",
+    "end": "2026-02-02 11:00:30",
+    "detected_days": 7,
+    "complete_days": 5,
+    "incomplete_days": 2
+  },
+  "environment": {
+    "python": "3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]",
+    "platform": "win32",
+    "machine": "Windows-11-10.0.26200-SP0",
+    "executable": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\.venv\\Scripts\\python.exe",
+    "git_commit": "ed3b18dfb4413acfeccfb14c09e68abb66685252",
+    "psutil_available": false,
+    "tracemalloc_enabled": false
+  },
+  "pdf_selected_graphs": [
+    "Tensão"
+  ],
+  "metrics": {
+    "startup": {
+      "total_subprocess_seconds": 1.375181799987331,
+      "app_import_seconds": 1.1957642999768723
+    },
+    "etl": {
+      "seconds": 1.9456687000056263,
+      "memory_peak_mb": null,
+      "rss_peak_mb": null,
+      "rss_delta_mb": null
+    },
+    "graph_generation": {
+      "total_seconds": 1.4317671999451704,
+      "graphs": {
+        "Tensão": {
+          "seconds": 0.295421399991028,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Corrente": {
+          "seconds": 0.0974168999819085,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Potência Ativa": {
+          "seconds": 0.06749329998274334,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Potência Aparente": {
+          "seconds": 0.0648728999949526,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Fator de Potência": {
+          "seconds": 0.07197750001796521,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "DHT Tensão": {
+          "seconds": 0.08631310000782833,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "DHT Corrente": {
+          "seconds": 0.10049139999318868,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Deseq. Tensão": {
+          "seconds": 0.07172630002605729,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Deseq. Corrente": {
+          "seconds": 0.09170190000440925,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Consumo": {
+          "seconds": 0.07521449998603202,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "Tensão x Corrente": {
+          "seconds": 0.23139579998678528,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        },
+        "kW x kVA": {
+          "seconds": 0.17774219997227192,
+          "memory_peak_mb": null,
+          "rss_delta_mb": null
+        }
+      }
+    },
+    "time_filter": {
+      "seconds": 0.013778699998511001,
+      "memory_peak_mb": null,
+      "rss_peak_mb": null,
+      "rss_delta_mb": null,
+      "rows": 13680,
+      "start": "2026-01-27 15:00:00",
+      "end": "2026-01-29 23:59:45"
+    },
+    "standard_pdf_export": {
+      "seconds": 1.974447099986719,
+      "memory_peak_mb": null,
+      "rss_peak_mb": null,
+      "rss_delta_mb": null
+    },
+    "custom_single_pdf_export": {
+      "seconds": 1.772468699986348,
+      "memory_peak_mb": null,
+      "rss_peak_mb": null,
+      "rss_delta_mb": null
+    },
+    "custom_daily_pdf_export": {
+      "seconds": 7.25822839999455,
+      "memory_peak_mb": null,
+      "rss_peak_mb": null,
+      "rss_delta_mb": null
+    }
+  },
+  "pdf_outputs": {
+    "standard": [
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\standard\\GR - ASD - 20260605-085749 - REV00.pdf",
+        "size_bytes": 284214,
+        "graphs": [
+          "Tensão"
+        ]
+      }
+    ],
+    "custom_single": [
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_single\\GR - ASD - 20260605-085749 - REV00.pdf",
+        "size_bytes": 278329,
+        "graphs": [
+          "Tensão"
+        ]
+      }
+    ],
+    "custom_daily": [
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_daily\\GR - ASD - 20260127-085751 - REV00.pdf",
+        "size_bytes": 259574,
+        "graphs": [
+          "Tensão"
+        ]
+      },
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_daily\\GR - ASD - 20260128-085751 - REV00.pdf",
+        "size_bytes": 270771,
+        "graphs": [
+          "Tensão"
+        ]
+      },
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_daily\\GR - ASD - 20260129-085753 - REV00.pdf",
+        "size_bytes": 274484,
+        "graphs": [
+          "Tensão"
+        ]
+      },
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_daily\\GR - ASD - 20260130-085753 - REV00.pdf",
+        "size_bytes": 269329,
+        "graphs": [
+          "Tensão"
+        ]
+      },
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_daily\\GR - ASD - 20260131-085755 - REV00.pdf",
+        "size_bytes": 267321,
+        "graphs": [
+          "Tensão"
+        ]
+      },
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_daily\\GR - ASD - 20260201-085755 - REV00.pdf",
+        "size_bytes": 273969,
+        "graphs": [
+          "Tensão"
+        ]
+      },
+      {
+        "path": "C:\\Users\\eco98\\VSCodeProjects\\MUG\\docs\\benchmarks\\artifacts\\v1.3.8-timing\\custom_daily\\GR - ASD - 20260202-085757 - REV00.pdf",
+        "size_bytes": 269457,
+        "graphs": [
+          "Tensão"
+        ]
+      }
+    ]
+  },
+  "historical_comparison": {
+    "source": "docs\\benchmarks\\runs\\v1.3.3-primata-txt.json",
+    "startup_seconds": 0.940247599966824,
+    "etl_seconds": 2.0422122000018135,
+    "graph_generation_seconds": 1.3807775999885052,
+    "pdf_export_seconds": 106.05537419999018
+  }
+}

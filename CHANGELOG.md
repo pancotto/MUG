@@ -1,5 +1,52 @@
 # Changelog
 
+## v1.3.8
+
+### New Features
+
+- Added click-and-drag date range preparation in the SELECAO detected-days table.
+- Added Shift-click inclusive range preparation in both SELECAO and custom export day tables.
+- Added current-measurement export cancellation using the same cooperative cancellation flow used by custom export.
+
+### Improvements
+
+- Renamed the standard active-interval export action to EXPORTAR MEDICAO ATUAL.
+- Refined the embedded custom export interval controls to match the SELECAO tab behavior.
+- Standardized export completion, cancellation and error dialogs across all export modes.
+- Preserved single-click day preparation and double-click apply behavior.
+- Preserved active SELECAO interval behavior after custom export.
+
+### Performance
+
+- Optimized Primata TXT ETL by using safer fast paths for CSV parsing, datetime parsing and numeric dtype preservation.
+- Added graph caching for already generated graphs with invalidation on file load, new analysis and interval changes.
+- Added conservative parallel daily PDF export with two workers.
+- Added release benchmark automation with JSON and Markdown outputs.
+- v1.3.8 timing benchmark reference: ETL 1.946s; initial graph generation 1.432s; current measurement PDF export 1.974s; custom single PDF export 1.772s; custom daily PDF export 7.258s for seven daily PDFs using one graph.
+
+### Bug Fixes
+
+- Standardized PDF filenames using the "GR - EMPRESA - YYYYMMDD-HHMMSS - REV00.pdf" pattern.
+- Added timestamps to all generated PDF filename patterns.
+- Added safe filename de-duplication to avoid overwriting existing PDFs.
+- Fixed custom daily PDF export filename collisions by precomputing unique output paths before launching parallel workers.
+- Added retry with numeric suffixes when a target PDF path is already locked or unavailable.
+- Prevented duplicate filename allocation inside the same parallel export batch.
+
+### Benchmark Results
+
+- Startup subprocess: 1.375s in timing-only benchmark.
+- App import: 1.196s in timing-only benchmark.
+- ETL: 1.946s in timing-only benchmark, approximately 68 percent faster than the prior 6.104s reference from the v1.3.8 pre-hardening benchmark.
+- Daily PDF export: 7.258s in timing-only benchmark, approximately 35 percent faster than the prior 11.218s reference.
+- Official memory benchmark uses tracemalloc fallback when psutil is unavailable.
+
+### Known Limitations
+
+- XLS validation depends on available customer samples; the release dataset set includes Primata XLSX, Primata TXT and Embrasul TXT.
+- PDF export time still scales with graph count because each selected graph is rendered through Plotly/Kaleido.
+- psutil is optional; RSS peak memory is reported only when psutil is installed.
+
 ## v1.3.7
 
 - Replaced fixed daily PDF export with a custom measurement export workflow.

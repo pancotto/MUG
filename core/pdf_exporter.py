@@ -451,12 +451,6 @@ def save_figure_as_jpeg(fig, output_path: Path) -> Path:
     return output_path
 
 
-def build_pdf_filename(company: str, revision: str) -> str:
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    safe_company = company.strip().replace("/", "-").replace("\\", "-")
-    return f"GR - {safe_company} - {timestamp} - REV{revision}.pdf"
-
-
 def sanitize_pdf_filename_part(value: str | None, fallback: str = "MEDICAO") -> str:
     clean = str(value or "").strip().upper()
     clean = re.sub(r'[<>:"/\\|?*]+', "-", clean)
@@ -464,16 +458,81 @@ def sanitize_pdf_filename_part(value: str | None, fallback: str = "MEDICAO") -> 
     return clean or fallback
 
 
-def build_daily_pdf_filename(company: str | None, day_value) -> str:
+def normalize_pdf_revision(revision: str | None) -> str:
+    clean = sanitize_pdf_filename_part(revision, fallback="REV00")
+    clean = re.sub(r"^REV\s*", "", clean, flags=re.IGNORECASE).strip()
+    clean = clean.strip(" -")
+    return f"REV{clean or '00'}"
+
+
+def build_pdf_filename(
+    company: str | None,
+    revision: str | None,
+    date_token: str | None = None,
+) -> str:
     safe_company = sanitize_pdf_filename_part(company)
+    safe_revision = normalize_pdf_revision(revision)
+    token = date_token or datetime.now().strftime("%Y%m%d-%H%M%S")
+    return f"GR - {safe_company} - {token} - {safe_revision}.pdf"
+
+
+def build_daily_pdf_filename(
+    company: str | None,
+    revision: str | None,
+    day_value,
+    timestamp=None,
+) -> str:
     day = pd.Timestamp(day_value).strftime("%Y%m%d")
-    return f"GR - {safe_company} - {day}.pdf"
+    time_value = pd.Timestamp(timestamp or datetime.now()).strftime("%H%M%S")
+    return build_pdf_filename(company, revision, f"{day}-{time_value}")
 
 
-def build_custom_pdf_filename(company: str | None, timestamp=None) -> str:
-    safe_company = sanitize_pdf_filename_part(company)
+def build_custom_pdf_filename(company: str | None, revision: str | None, timestamp=None) -> str:
     value = pd.Timestamp(timestamp or datetime.now()).strftime("%Y%m%d-%H%M%S")
-    return f"GR - {safe_company} - PERSONALIZADA - {value}.pdf"
+    return build_pdf_filename(company, revision, value)
+
+
+def next_pdf_suffix_path(path: Path) -> Path:
+    match = re.match(r"^(?P<stem>.*) \((?P<number>\d+)\)$", path.stem)
+    if match:
+        base_stem = match.group("stem")
+        next_number = int(match.group("number")) + 1
+    else:
+        base_stem = path.stem
+        next_number = 2
+    return path.with_name(f"{base_stem} ({next_number}){path.suffix}")
+
+
+def ensure_unique_pdf_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+
+    candidate = next_pdf_suffix_path(path)
+    while True:
+        if not candidate.exists():
+            return candidate
+        candidate = next_pdf_suffix_path(candidate)
+
+
+def reserve_unique_pdf_paths(output_dir: Path, filenames: list[str]) -> list[Path]:
+    reserved: set[str] = set()
+    paths: list[Path] = []
+
+    for filename in filenames:
+        base_path = output_dir / filename
+        candidate = base_path
+        counter = 2
+
+        while candidate.exists() or candidate.name.lower() in reserved:
+            candidate = base_path.with_name(
+                f"{base_path.stem} ({counter}){base_path.suffix}"
+            )
+            counter += 1
+
+        reserved.add(candidate.name.lower())
+        paths.append(candidate)
+
+    return paths
 
 
 def export_figures_to_pdf(
@@ -521,7 +580,7 @@ def export_figures_to_pdf(
             raise ValueError("Nenhum gráfico foi selecionado para exportação.")
 
         pdf_filename = build_pdf_filename(processed.company, processed.revision)
-        pdf_path = output_dir / pdf_filename
+        pdf_path = ensure_unique_pdf_path(output_dir / pdf_filename)
         pdf.output(str(pdf_path))
 
         return pdf_path

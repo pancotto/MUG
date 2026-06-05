@@ -170,7 +170,7 @@ def read_primata_txt(file_path: Path) -> pd.DataFrame:
         header=header_line_index,
         encoding="latin1",
         dtype=str,
-        engine="python",
+        engine="c",
     )
 
     dataframe = dataframe.dropna(axis=1, how="all")
@@ -478,6 +478,18 @@ def parse_datetime_columns(df: pd.DataFrame) -> pd.Series:
         if date_parsed.notna().sum() == 0:
             date_parsed = pd.to_datetime(date_as_text, dayfirst=True, errors="coerce")
 
+    time_as_text = pd.Series(time_raw, index=df.index).astype(str).str.strip()
+    fast_time = time_as_text.str.match(r"^\d{2}:\d{2}:\d{2}$", na=False)
+    if fast_time.all():
+        datetime_text = date_parsed.dt.strftime("%Y-%m-%d") + " " + time_as_text
+        parsed_datetime = pd.to_datetime(
+            datetime_text,
+            format="%Y-%m-%d %H:%M:%S",
+            errors="coerce",
+        )
+        if parsed_datetime.notna().any():
+            return parsed_datetime
+
     time_series = pd.Series(time_raw, index=df.index)
 
     def _time_to_text(value):
@@ -549,6 +561,9 @@ def prepare_common_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
 
     for column in df.columns:
         if column in ["Data", "Hora ", "Datetime"]:
+            continue
+
+        if pd.api.types.is_numeric_dtype(df[column]):
             continue
 
         df[column] = parse_numeric_series(df[column])
