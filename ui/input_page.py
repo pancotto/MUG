@@ -10,7 +10,7 @@ except Exception:
     get_app_assets = None
 
 
-APP_VERSION_FALLBACK = "1.3.8"
+APP_VERSION_FALLBACK = "1.3.9"
 
 
 def get_app_version() -> str:
@@ -55,6 +55,11 @@ def format_app_version(version: str) -> str:
 from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
 from PySide6.QtGui import QPixmap
 from ui.about_dialog import AboutDialog
+from ui.input_validation import (
+    enable_uppercase_input,
+    set_decimal_number_validator,
+    set_digits_only_validator,
+)
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -263,6 +268,8 @@ class InputPage(QWidget):
         self._enable_uppercase_input(self.city_input["input"])
         self._enable_uppercase_input(self.local_input["input"])
         self._enable_uppercase_input(self.equipment_reference_input["input"])
+        set_digits_only_validator(self.revision_input["input"])
+        set_decimal_number_validator(self.equipment_value_input["input"])
 
         top_row_layout = QHBoxLayout()
         top_row_layout.setContentsMargins(0, 0, 0, 0)
@@ -365,14 +372,7 @@ class InputPage(QWidget):
         self.setLayout(root_layout)
 
     def _enable_uppercase_input(self, line_edit: QLineEdit):
-        def force_uppercase(value: str):
-            cursor_position = line_edit.cursorPosition()
-            upper_value = value.upper()
-            if value != upper_value:
-                line_edit.setText(upper_value)
-                line_edit.setCursorPosition(cursor_position)
-
-        line_edit.textEdited.connect(force_uppercase)
+        enable_uppercase_input(line_edit)
 
     def _create_equipment_selector(self):
         container = QWidget()

@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.3.9
+
+### New Features
+
+- Added optional "PERSONALIZAR TÍTULO" area in the EXPORTAR PDF tab.
+- Added export-only metadata customization for Empresa, Cidade/ES, Revisão, Local, Referência/Tag and Potência/Corrente.
+- Added filename metadata block after company name for all PDF export modes.
+
+### Improvements
+
+- Standardized PDF filenames as "GR - EMPRESA - LOCAL REFERÊNCIA VALOR - DATA - REV.pdf".
+- Daily custom exports now use the same metadata standard with one file per measurement day.
+- Customized export metadata is applied only to PDF titles and filenames without mutating the loaded analysis.
+- Switching customization back to "NÃO" restores original input metadata for future exports.
+
+### Compatibility
+
+- Preserved graph calculations, ETL behavior, PDF layout, update workflow and benchmark methodology.
+- Preserved collision-safe suffix behavior for duplicate or locked PDF filenames.
+
 ## v1.3.8
 
 ### New Features

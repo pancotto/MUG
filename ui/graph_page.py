@@ -22,7 +22,9 @@ from PySide6.QtWidgets import (
     QPushButton,
     QCheckBox,
     QRadioButton,
+    QLineEdit,
     QScrollArea,
+    QSizePolicy,
     QFileDialog,
     QProgressBar,
     QComboBox,
@@ -47,7 +49,7 @@ from core.graph_builder import (
     create_combined_vxi_graph,
     create_combined_kwxkva_graph,
 )
-from core.models import ProcessedData
+from core.models import ProcessedData, format_numeric_value
 from core.pdf_exporter import (
     build_custom_pdf_filename,
     build_daily_pdf_filename,
@@ -81,9 +83,14 @@ from core.time_filter import (
     time_options_for_integration,
 )
 from ui.about_dialog import AboutDialog
+from ui.input_validation import (
+    enable_uppercase_input,
+    set_decimal_number_validator,
+    set_digits_only_validator,
+)
 
 
-APP_VERSION_FALLBACK = "1.3.8"
+APP_VERSION_FALLBACK = "1.3.9"
 CUSTOM_DAILY_PDF_MAX_WORKERS = 2
 
 
@@ -410,12 +417,13 @@ class PdfExportWorker(QObject):
     error = Signal(str)
     canceled = Signal()
 
-    def __init__(self, processed, selected_graphs, output_dir, zoom_mode):
+    def __init__(self, processed, selected_graphs, output_dir, zoom_mode, pdf_filename=None):
         super().__init__()
         self.processed = processed
         self.selected_graphs = selected_graphs
         self.output_dir = output_dir
         self.zoom_mode = zoom_mode
+        self.pdf_filename = pdf_filename
         self._cancel_requested = False
 
     def request_cancel(self):
@@ -433,6 +441,7 @@ class PdfExportWorker(QObject):
                 selected_graphs=self.selected_graphs,
                 output_dir=self.output_dir,
                 zoom_mode=self.zoom_mode,
+                pdf_filename=self.pdf_filename,
             )
             if self._cancel_requested:
                 self.canceled.emit()
@@ -464,6 +473,7 @@ class CustomPdfExportWorker(QObject):
                 selected_graphs=self.selected_graphs,
                 output_dir=Path(temp_dir),
                 zoom_mode=False,
+                pdf_filename=task["filename"],
             ))
 
             target_path = Path(task["output_path"])
@@ -1219,6 +1229,7 @@ class CustomMeasurementExportPanel(QWidget):
         self.graph_checkboxes: dict[str, QCheckBox] = {}
         self.day_checkboxes: list[QCheckBox] = []
         self._graph_column_count = 0
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._build_ui()
         self._update_visibility()
 
@@ -1279,11 +1290,11 @@ class CustomMeasurementExportPanel(QWidget):
         """)
 
         root_layout = QVBoxLayout()
-        root_layout.setContentsMargins(18, 18, 18, 18)
-        root_layout.setSpacing(10)
+        root_layout.setContentsMargins(12, 12, 12, 12)
+        root_layout.setSpacing(8)
 
         title = QLabel("EXPORTAR MEDIÇÃO PERSONALIZADA")
-        title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        title.setStyleSheet("font-size: 20px; font-weight: bold;")
         root_layout.addWidget(title)
 
         root_layout.addWidget(self._build_scope_group())
@@ -1319,7 +1330,10 @@ class CustomMeasurementExportPanel(QWidget):
         self.days_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.days_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.days_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.days_table.setMinimumHeight(150)
+        self.days_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.days_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.days_table.setMinimumHeight(145)
+        self.days_table.setMaximumHeight(175)
         self.days_table.dragRangeChanged.connect(self._on_day_drag_range_changed)
         self.days_table.shiftRangeSelected.connect(self._on_day_drag_range_changed)
         self.days_table.cellClicked.connect(self._on_day_row_clicked)
@@ -1329,22 +1343,33 @@ class CustomMeasurementExportPanel(QWidget):
         self._row_default_brush = QBrush(QColor("#111111"))
         self._row_highlight_brush = QBrush(QColor("#3a3a3a"))
 
-        interval_layout = QHBoxLayout()
+        interval_layout = QGridLayout()
         interval_layout.setContentsMargins(0, 6, 0, 6)
+        interval_layout.setHorizontalSpacing(8)
+        interval_layout.setVerticalSpacing(4)
         self.start_date_combo = QComboBox()
         self.start_date_combo.currentIndexChanged.connect(self._on_date_range_changed)
         self.start_time_combo = QComboBox()
         self.end_date_combo = QComboBox()
         self.end_date_combo.currentIndexChanged.connect(self._on_date_range_changed)
         self.end_time_combo = QComboBox()
-        interval_layout.addWidget(QLabel("Data Inicial"))
-        interval_layout.addWidget(self.start_date_combo)
-        interval_layout.addWidget(QLabel("Hora Inicial"))
-        interval_layout.addWidget(self.start_time_combo)
-        interval_layout.addWidget(QLabel("Data Final"))
-        interval_layout.addWidget(self.end_date_combo)
-        interval_layout.addWidget(QLabel("Hora Final"))
-        interval_layout.addWidget(self.end_time_combo)
+        for combo in [
+            self.start_date_combo,
+            self.start_time_combo,
+            self.end_date_combo,
+            self.end_time_combo,
+        ]:
+            combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        interval_fields = [
+            ("Data Inicial", self.start_date_combo),
+            ("Hora Inicial", self.start_time_combo),
+            ("Data Final", self.end_date_combo),
+            ("Hora Final", self.end_time_combo),
+        ]
+        for index, (label, combo) in enumerate(interval_fields):
+            interval_layout.addWidget(QLabel(label), 0, index)
+            interval_layout.addWidget(combo, 1, index)
         layout.addLayout(interval_layout)
 
         self._populate_interval_controls()
@@ -1367,13 +1392,16 @@ class CustomMeasurementExportPanel(QWidget):
         group = QGroupBox("3. Gráficos")
         layout = QVBoxLayout()
 
-        quick_layout = QHBoxLayout()
+        quick_layout = QGridLayout()
+        quick_layout.setHorizontalSpacing(8)
+        quick_layout.setVerticalSpacing(6)
         for label, callback, is_clear in [
             ("SELEÇÃO PADRÃO", self._select_default_graphs, False),
             ("SELECIONAR TODOS", self._select_all_graphs, False),
             ("LIMPAR SELEÇÃO", self._clear_graphs, True),
         ]:
             button = QPushButton(label)
+            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             if is_clear:
                 button.setStyleSheet("""
                     QPushButton {
@@ -1409,7 +1437,7 @@ class CustomMeasurementExportPanel(QWidget):
                     }
                 """)
             button.clicked.connect(callback)
-            quick_layout.addWidget(button)
+            quick_layout.addWidget(button, 0, quick_layout.count())
         layout.addLayout(quick_layout)
 
         self.graph_grid_layout = QGridLayout()
@@ -1426,7 +1454,7 @@ class CustomMeasurementExportPanel(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._arrange_graph_checkboxes(3 if self.width() >= 760 else 2)
+        self._arrange_graph_checkboxes(3 if self.width() >= 860 else 2)
 
     def _arrange_graph_checkboxes(self, column_count: int):
         if self._graph_column_count == column_count:
@@ -1723,6 +1751,190 @@ def format_export_error_message(error_details: str) -> str:
     return f"Não foi possível concluir a exportação.\n\n{error_details}"
 
 
+class ExportTitleCustomizationPanel(QGroupBox):
+    def __init__(self, parent=None):
+        super().__init__("PERSONALIZAR TÍTULO", parent)
+        self.original_processed: ProcessedData | None = None
+        self.fields: dict[str, QLineEdit] = {}
+        self._build_ui()
+        self.refresh_context(None)
+
+    def _build_ui(self):
+        layout = QVBoxLayout()
+        layout.setContentsMargins(8, 12, 8, 8)
+        layout.setSpacing(6)
+
+        radio_layout = QHBoxLayout()
+        radio_layout.addWidget(QLabel("Usar título personalizado?"))
+        self.no_radio = QRadioButton("NÃO")
+        self.yes_radio = QRadioButton("SIM")
+        self.no_radio.setChecked(True)
+        self.no_radio.toggled.connect(self._on_mode_changed)
+        self.yes_radio.toggled.connect(self._on_mode_changed)
+        radio_layout.addWidget(self.no_radio)
+        radio_layout.addWidget(self.yes_radio)
+        radio_layout.addStretch()
+        layout.addLayout(radio_layout)
+
+        self.fields_layout = QVBoxLayout()
+        self.fields_layout.setSpacing(6)
+
+        first_row = QGridLayout()
+        first_row.setHorizontalSpacing(10)
+        first_row.setVerticalSpacing(4)
+        second_row = QGridLayout()
+        second_row.setHorizontalSpacing(10)
+        second_row.setVerticalSpacing(4)
+
+        field_specs = [
+            (first_row, "company", "Empresa", 0),
+            (first_row, "city", "Cidade/ES", 1),
+            (first_row, "display_integration_text", "Integralização", 2),
+            (first_row, "revision", "Revisão", 3),
+            (second_row, "local", "Local", 0),
+            (second_row, "equipment_reference", "Referência / Tag", 1),
+            (second_row, "equipment_value", "Potência (kVA)", 2),
+        ]
+        for row_layout, key, label, column in field_specs:
+            label_widget = QLabel(label)
+            input_widget = QLineEdit()
+            input_widget.setMinimumHeight(26)
+            input_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            self.fields[key] = input_widget
+            if key == "equipment_value":
+                self.equipment_value_label = label_widget
+            row_layout.addWidget(label_widget, 0, column)
+            row_layout.addWidget(input_widget, 1, column)
+
+        for column in range(4):
+            first_row.setColumnStretch(column, 1)
+        for column in range(3):
+            second_row.setColumnStretch(column, 1)
+        self.fields_layout.addLayout(first_row)
+        self.fields_layout.addLayout(second_row)
+        layout.addLayout(self.fields_layout)
+        self._configure_field_validation()
+        self.setLayout(layout)
+
+        self.setStyleSheet("""
+            QGroupBox {
+                color: #f1f1f1;
+                border: 1px solid #333333;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
+            }
+            QLabel, QRadioButton {
+                color: #f1f1f1;
+                background-color: transparent;
+            }
+            QRadioButton::indicator {
+                width: 14px;
+                height: 14px;
+                border-radius: 7px;
+                border: 1px solid #777777;
+                background-color: #111111;
+            }
+            QRadioButton::indicator:checked {
+                border: 1px solid #2d6cdf;
+                background-color: #2d6cdf;
+            }
+            QLineEdit {
+                background-color: #111111;
+                color: #f1f1f1;
+                border: 1px solid #2d6cdf;
+                border-radius: 4px;
+                padding: 5px;
+            }
+            QLineEdit:disabled {
+                background-color: #0b0b0b;
+                color: #777777;
+                border: 1px solid #333333;
+            }
+        """)
+
+    def _configure_field_validation(self):
+        for key in ("company", "city", "local", "equipment_reference"):
+            enable_uppercase_input(self.fields[key])
+
+        set_digits_only_validator(self.fields["revision"])
+        set_decimal_number_validator(self.fields["equipment_value"])
+
+    def refresh_context(self, processed: ProcessedData | None):
+        self.original_processed = processed
+        self.no_radio.setChecked(True)
+        self._populate_from_processed()
+        self._update_enabled_state()
+
+    def _on_mode_changed(self):
+        if self.no_radio.isChecked():
+            self._populate_from_processed()
+        self._update_enabled_state()
+
+    def _populate_from_processed(self):
+        processed = self.original_processed
+        values = {
+            "company": processed.company if processed else "",
+            "city": processed.city if processed else "",
+            "display_integration_text": processed.integration_display_text() if processed else "",
+            "revision": processed.revision if processed else "",
+            "local": processed.local if processed else "",
+            "equipment_reference": processed.equipment_reference if processed else "",
+            "equipment_value": format_numeric_value(processed.equipment_value) if processed else "",
+        }
+        for key, value in values.items():
+            self.fields[key].setText(str(value or ""))
+        self._update_equipment_value_label()
+
+    def _update_equipment_value_label(self):
+        label_text = "Corrente (A)" if self._is_breaker() else "Potência (kVA)"
+        self.equipment_value_label.setText(label_text)
+
+    def _is_breaker(self) -> bool:
+        return bool(
+            self.original_processed
+            and self.original_processed.equipment_type == "DISJUNTOR"
+        )
+
+    def _update_enabled_state(self):
+        enabled = self.yes_radio.isChecked()
+        for field in self.fields.values():
+            field.setEnabled(enabled)
+
+    def metadata(self) -> dict:
+        processed = self.original_processed
+        if processed is None or self.no_radio.isChecked():
+            if processed is None:
+                return {}
+            return {
+                "company": processed.company,
+                "city": processed.city,
+                "revision": processed.revision,
+                "local": processed.local,
+                "equipment_reference": processed.equipment_reference,
+                "equipment_value": processed.equipment_value,
+                "equipment_type": processed.equipment_type,
+                "display_integration_text": processed.integration_display_text(),
+            }
+
+        return {
+            "company": self.fields["company"].text().strip().upper(),
+            "city": self.fields["city"].text().strip().upper(),
+            "display_integration_text": self.fields["display_integration_text"].text().strip(),
+            "revision": self.fields["revision"].text().strip(),
+            "local": self.fields["local"].text().strip().upper(),
+            "equipment_reference": self.fields["equipment_reference"].text().strip().upper(),
+            "equipment_value": self.fields["equipment_value"].text().strip().replace(",", "."),
+            "equipment_type": processed.equipment_type,
+        }
+
+
 class PdfExportTab(QWidget):
     def __init__(self, graph_page):
         super().__init__()
@@ -2001,6 +2213,7 @@ class PdfExportTab(QWidget):
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setWidget(checklist_container)
 
         left_column = QWidget()
@@ -2029,14 +2242,16 @@ class PdfExportTab(QWidget):
         right_container = QWidget()
         right_layout = QVBoxLayout()
         right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(8)
-        right_layout.addWidget(self.custom_export_panel)
+        right_layout.setSpacing(6)
+        right_layout.addWidget(self.custom_export_panel, 1)
         right_layout.addLayout(custom_buttons_layout)
-        right_layout.addStretch()
         right_container.setLayout(right_layout)
+        right_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
         right_scroll_area = QScrollArea()
         right_scroll_area.setWidgetResizable(True)
+        right_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        right_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         right_scroll_area.setWidget(right_container)
 
         separator = QFrame()
@@ -2053,6 +2268,8 @@ class PdfExportTab(QWidget):
         columns_layout.addWidget(right_scroll_area, 1)
 
         root_layout.addLayout(columns_layout, 1)
+        self.title_customization_panel = ExportTitleCustomizationPanel(self)
+        root_layout.addWidget(self.title_customization_panel)
         root_layout.addWidget(self.status_label)
         root_layout.addWidget(self.progress_bar)
 
@@ -2065,6 +2282,7 @@ class PdfExportTab(QWidget):
         self.select_all_button.setDisabled(exporting)
         self.clear_all_button.setDisabled(exporting)
         self.custom_export_panel.setDisabled(exporting)
+        self.title_customization_panel.setDisabled(exporting)
 
         for checkbox in self.checkboxes.values():
             checkbox.setDisabled(exporting)
@@ -2101,6 +2319,7 @@ class PdfExportTab(QWidget):
             self.graph_page.original_processed,
             self.graph_page.time_selection_tab.detected_days,
         )
+        self.title_customization_panel.refresh_context(self.graph_page.original_processed)
 
     def _ensure_custom_export_context_current(self):
         detected_days = tuple(self.graph_page.time_selection_tab.detected_days)
@@ -2112,12 +2331,59 @@ class PdfExportTab(QWidget):
                 self.graph_page.original_processed,
                 detected_days,
             )
+            self.title_customization_panel.refresh_context(self.graph_page.original_processed)
 
     def _selected_graphs(self) -> list[str]:
         return [
             name for name, checkbox in self.checkboxes.items()
             if checkbox.isChecked()
         ]
+
+    def _export_metadata(self) -> dict:
+        return self.title_customization_panel.metadata()
+
+    def _processed_with_export_metadata(
+        self,
+        processed: ProcessedData,
+        metadata: dict,
+        dataframe: pd.DataFrame | None = None,
+    ) -> ProcessedData:
+        export_processed = ProcessedData(
+            company=metadata.get("company", processed.company),
+            city=metadata.get("city", processed.city),
+            trafo=processed.trafo,
+            local=metadata.get("local", processed.local),
+            revision=metadata.get("revision", processed.revision),
+            excel_path=processed.excel_path,
+            dataframe=processed.dataframe if dataframe is None else dataframe,
+            integration_time=processed.integration_time,
+            tension=processed.tension,
+            equipment_type=processed.equipment_type,
+            equipment_reference=processed.equipment_reference,
+            equipment_value=processed.equipment_value,
+        )
+        export_processed.display_equipment_reference = metadata.get(
+            "equipment_reference",
+            processed.equipment_reference,
+        )
+        export_processed.display_equipment_value = metadata.get(
+            "equipment_value",
+            processed.equipment_value,
+        )
+        export_processed.display_integration_text = metadata.get(
+            "display_integration_text",
+            processed.integration_display_text(),
+        )
+        return export_processed
+
+    @staticmethod
+    def _filename_metadata(metadata: dict) -> dict:
+        return {
+            "local": metadata.get("local"),
+            "equipment_reference": metadata.get("equipment_reference"),
+            "equipment_type": metadata.get("equipment_type"),
+            "equipment_value": metadata.get("equipment_value"),
+        }
 
     def _validate_pdf_preflight(
         self,
@@ -2196,6 +2462,7 @@ class PdfExportTab(QWidget):
                 return
 
             processed = self.graph_page.current_processed
+            export_metadata = self._export_metadata()
 
             zoom_mode = (
                 self.graph_page.current_x_min is not None
@@ -2211,22 +2478,22 @@ class PdfExportTab(QWidget):
                     (df["Datetime"] <= self.graph_page.current_x_max)
                 ].copy()
 
-                processed_for_pdf = ProcessedData(
-                    company=processed.company,
-                    city=processed.city,
-                    trafo=processed.trafo,
-                    local=processed.local,
-                    revision=processed.revision,
-                    excel_path=processed.excel_path,
+                processed_for_pdf = self._processed_with_export_metadata(
+                    processed,
+                    export_metadata,
                     dataframe=df,
-                    integration_time=processed.integration_time,
-                    tension=processed.tension,
-                    equipment_type=processed.equipment_type,
-                    equipment_reference=processed.equipment_reference,
-                    equipment_value=processed.equipment_value,
                 )
             else:
-                processed_for_pdf = processed
+                processed_for_pdf = self._processed_with_export_metadata(
+                    processed,
+                    export_metadata,
+                )
+
+            pdf_filename = build_custom_pdf_filename(
+                export_metadata.get("company", processed.company),
+                export_metadata.get("revision", processed.revision),
+                **self._filename_metadata(export_metadata),
+            )
 
             self.set_exporting_state(True)
             self.cancel_standard_button.setVisible(True)
@@ -2238,6 +2505,7 @@ class PdfExportTab(QWidget):
                 selected_graphs=selected_graphs,
                 output_dir=Path(output_dir),
                 zoom_mode=zoom_mode,
+                pdf_filename=pdf_filename,
             )
             self._pdf_worker.moveToThread(self._pdf_thread)
 
@@ -2261,24 +2529,19 @@ class PdfExportTab(QWidget):
                 format_export_error_message(str(e))
             )
 
-    def _processed_for_dataframe(self, dataframe: pd.DataFrame) -> ProcessedData:
+    def _processed_for_dataframe(
+        self,
+        dataframe: pd.DataFrame,
+        metadata: dict | None = None,
+    ) -> ProcessedData:
         original = self.graph_page.original_processed
         if original is None:
             raise ValueError("Nenhuma medição original está disponível.")
 
-        return ProcessedData(
-            company=original.company,
-            city=original.city,
-            trafo=original.trafo,
-            local=original.local,
-            revision=original.revision,
-            excel_path=original.excel_path,
+        return self._processed_with_export_metadata(
+            original,
+            metadata or self._export_metadata(),
             dataframe=dataframe,
-            integration_time=original.integration_time,
-            tension=original.tension,
-            equipment_type=original.equipment_type,
-            equipment_reference=original.equipment_reference,
-            equipment_value=original.equipment_value,
         )
 
     def _filtered_dataframe_for_bounds(self, start, end) -> pd.DataFrame:
@@ -2310,11 +2573,22 @@ class PdfExportTab(QWidget):
         company = original.company
         revision = original.revision
         output_dir = Path(config["output_dir"])
+        export_metadata = config["metadata"]
+        company = export_metadata.get("company", company)
+        revision = export_metadata.get("revision", revision)
+        filename_metadata = self._filename_metadata(export_metadata)
 
         if config["mode"] == "daily":
             tasks: list[dict] = []
+            export_timestamp = pd.Timestamp.now()
             filenames = [
-                build_daily_pdf_filename(company, revision, day.date)
+                build_daily_pdf_filename(
+                    company,
+                    revision,
+                    day.date,
+                    export_timestamp,
+                    **filename_metadata,
+                )
                 for day in config["days"]
             ]
             output_paths = reserve_unique_pdf_paths(output_dir, filenames)
@@ -2329,7 +2603,7 @@ class PdfExportTab(QWidget):
                 )
                 tasks.append({
                     "label": day.label,
-                    "processed": self._processed_for_dataframe(dataframe),
+                    "processed": self._processed_for_dataframe(dataframe, export_metadata),
                     "filename": filename,
                     "output_path": output_path,
                 })
@@ -2345,12 +2619,16 @@ class PdfExportTab(QWidget):
         else:
             dataframe = self._dataframe_for_days(config["days"])
 
-        filename = build_custom_pdf_filename(company, revision)
+        filename = build_custom_pdf_filename(
+            company,
+            revision,
+            **filename_metadata,
+        )
         output_path = reserve_unique_pdf_paths(output_dir, [filename])[0]
 
         return [{
             "label": "Medição personalizada",
-            "processed": self._processed_for_dataframe(dataframe),
+            "processed": self._processed_for_dataframe(dataframe, export_metadata),
             "filename": filename,
             "output_path": output_path,
         }]
@@ -2385,6 +2663,7 @@ class PdfExportTab(QWidget):
         config = self.custom_export_panel.build_export_config()
         if not config:
             return
+        config["metadata"] = self._export_metadata()
 
         output_dir = QFileDialog.getExistingDirectory(
             self,

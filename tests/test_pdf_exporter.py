@@ -5,6 +5,7 @@ import pandas as pd
 from core.pdf_exporter import (
     build_custom_pdf_filename,
     build_daily_pdf_filename,
+    build_pdf_metadata_block,
     build_pdf_filename,
     ensure_unique_pdf_path,
     next_pdf_suffix_path,
@@ -14,15 +15,19 @@ from core.pdf_exporter import (
 )
 
 
-def test_build_daily_pdf_filename_uses_company_and_timestamp():
+def test_build_daily_pdf_filename_uses_company_metadata_and_day():
     assert (
         build_daily_pdf_filename(
-            "Ecocel",
+            "PicPay",
             "00",
             pd.Timestamp("2026-06-03"),
             "2026-06-05 18:40:01",
+            local="QDF-BB",
+            equipment_reference="AR COND",
+            equipment_type="DISJUNTOR",
+            equipment_value=400,
         )
-        == "GR - ECOCEL - 20260603-184001 - REV00.pdf"
+        == "GR - PICPAY - QDF-BB AR COND 400A - 20260603-184001 - REV00.pdf"
     )
 
 
@@ -33,8 +38,12 @@ def test_build_daily_pdf_filename_sanitizes_windows_invalid_characters():
             "REV01",
             "2026-06-03",
             "2026-06-05 18:40:01",
+            local="QDF/BB",
+            equipment_reference="TRAFO: 01",
+            equipment_type="TRAFO",
+            equipment_value=500,
         )
-        == "GR - ECO-CEL- UNIDADE - 01 - 20260603-184001 - REV01.pdf"
+        == "GR - ECO-CEL- UNIDADE - 01 - QDF-BB TRAFO- 01 500KVA - 20260603-184001 - REV01.pdf"
     )
 
 
@@ -45,10 +54,18 @@ def test_build_daily_pdf_filename_uses_fallback_company():
     )
 
 
-def test_build_custom_pdf_filename_uses_standard_single_pattern():
+def test_build_custom_pdf_filename_uses_transformer_metadata():
     assert (
-        build_custom_pdf_filename("Ecocel", "00", "2026-06-03 14:15:16")
-        == "GR - ECOCEL - 20260603-141516 - REV00.pdf"
+        build_custom_pdf_filename(
+            "Ecocel",
+            "00",
+            "2026-06-03 14:15:16",
+            local="QDF-BB",
+            equipment_reference="TRAFO 01",
+            equipment_type="TRAFO",
+            equipment_value=500,
+        )
+        == "GR - ECOCEL - QDF-BB TRAFO 01 500KVA - 20260603-141516 - REV00.pdf"
     )
 
 
@@ -61,8 +78,40 @@ def test_build_custom_pdf_filename_uses_fallback_company():
 
 def test_build_pdf_filename_uses_canonical_pattern():
     assert (
-        build_pdf_filename("Ecocel", "rev02", "20260603-182657")
-        == "GR - ECOCEL - 20260603-182657 - REV02.pdf"
+        build_pdf_filename(
+            "Ecocel",
+            "rev02",
+            "20260603-182657",
+            local="QGBT",
+            equipment_reference="DJ GERAL",
+            equipment_type="DISJUNTOR",
+            equipment_value=250,
+        )
+        == "GR - ECOCEL - QGBT DJ GERAL 250A - 20260603-182657 - REV02.pdf"
+    )
+
+
+def test_build_pdf_metadata_block_omits_empty_fields_cleanly():
+    assert (
+        build_pdf_metadata_block(
+            local="",
+            equipment_reference="DJ GERAL",
+            equipment_type="DISJUNTOR",
+            equipment_value="",
+        )
+        == "DJ GERAL"
+    )
+
+
+def test_build_pdf_metadata_block_collapses_duplicate_spaces():
+    assert (
+        build_pdf_metadata_block(
+            local=" QGBT  ",
+            equipment_reference=" DJ   AR   COND ",
+            equipment_type="DISJUNTOR",
+            equipment_value="250",
+        )
+        == "QGBT DJ AR COND 250A"
     )
 
 

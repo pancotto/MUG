@@ -64,6 +64,9 @@ class ProcessedData:
     equipment_type: str = EQUIPMENT_TYPE_TRAFO
     equipment_reference: str = ""
     equipment_value: float = 0.0
+    display_equipment_reference: str | None = None
+    display_equipment_value: float | str | None = None
+    display_integration_text: str | None = None
 
     def __post_init__(self):
         self.equipment_type = normalize_equipment_type(self.equipment_type)
@@ -129,8 +132,29 @@ class ProcessedData:
         As palavras TRANSFORMADOR e DISJUNTOR não são inseridas antes do valor,
         pois a referência/tag já identifica o equipamento para o relatório.
         """
-        reference = self.equipment_reference.strip()
-        value_text = format_numeric_value(self.equipment_value)
+        reference = (
+            self.equipment_reference
+            if self.display_equipment_reference is None
+            else str(self.display_equipment_reference)
+        ).strip()
+        raw_value = (
+            self.equipment_value
+            if self.display_equipment_value is None
+            else self.display_equipment_value
+        )
+
+        try:
+            numeric_value = float(str(raw_value).replace(",", "."))
+        except ValueError:
+            numeric_value = 0.0
+
+        if numeric_value <= 0:
+            return reference
+
+        if isinstance(raw_value, str):
+            value_text = raw_value.strip().replace(",", ".")
+        else:
+            value_text = format_numeric_value(numeric_value)
 
         if self.is_breaker:
             value_with_unit = f"{value_text}A"
@@ -165,6 +189,14 @@ class ProcessedData:
             return f"{int(tension_number)}V"
 
         return f"{format_numeric_value(tension_number)}V"
+
+    def integration_display_text(self) -> str:
+        if self.display_integration_text is not None:
+            text = str(self.display_integration_text).strip()
+            if text:
+                return text
+
+        return f"{self.integration_time}s"
 
     def nominal_power_annotation(self, unit: str) -> str:
         unit = unit.strip()

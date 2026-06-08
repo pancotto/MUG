@@ -12,6 +12,7 @@ from fpdf import FPDF
 from PIL import Image
 from plotly.io import to_image
 
+from core.models import EQUIPMENT_TYPE_BREAKER, format_numeric_value, normalize_equipment_type
 from core.graph_builder import (
     create_tension_graph,
     create_current_graph,
@@ -465,15 +466,57 @@ def normalize_pdf_revision(revision: str | None) -> str:
     return f"REV{clean or '00'}"
 
 
+def build_pdf_metadata_block(
+    local: str | None = None,
+    equipment_reference: str | None = None,
+    equipment_type: str | None = None,
+    equipment_value: float | str | None = None,
+) -> str:
+    parts: list[str] = []
+
+    safe_local = sanitize_pdf_filename_part(local, fallback="")
+    if safe_local:
+        parts.append(safe_local)
+
+    safe_reference = sanitize_pdf_filename_part(equipment_reference, fallback="")
+    if safe_reference:
+        parts.append(safe_reference)
+
+    try:
+        value = float(str(equipment_value or "").replace(",", "."))
+    except ValueError:
+        value = 0.0
+
+    if value > 0:
+        unit = "A" if normalize_equipment_type(equipment_type or "") == EQUIPMENT_TYPE_BREAKER else "KVA"
+        parts.append(f"{format_numeric_value(value).upper()}{unit}")
+
+    return sanitize_pdf_filename_part(" ".join(parts), fallback="")
+
+
 def build_pdf_filename(
     company: str | None,
     revision: str | None,
     date_token: str | None = None,
+    local: str | None = None,
+    equipment_reference: str | None = None,
+    equipment_type: str | None = None,
+    equipment_value: float | str | None = None,
 ) -> str:
     safe_company = sanitize_pdf_filename_part(company)
+    metadata_block = build_pdf_metadata_block(
+        local=local,
+        equipment_reference=equipment_reference,
+        equipment_type=equipment_type,
+        equipment_value=equipment_value,
+    )
     safe_revision = normalize_pdf_revision(revision)
     token = date_token or datetime.now().strftime("%Y%m%d-%H%M%S")
-    return f"GR - {safe_company} - {token} - {safe_revision}.pdf"
+    parts = ["GR", safe_company]
+    if metadata_block:
+        parts.append(metadata_block)
+    parts.extend([token, safe_revision])
+    return f"{' - '.join(parts)}.pdf"
 
 
 def build_daily_pdf_filename(
@@ -481,15 +524,43 @@ def build_daily_pdf_filename(
     revision: str | None,
     day_value,
     timestamp=None,
+    local: str | None = None,
+    equipment_reference: str | None = None,
+    equipment_type: str | None = None,
+    equipment_value: float | str | None = None,
 ) -> str:
     day = pd.Timestamp(day_value).strftime("%Y%m%d")
     time_value = pd.Timestamp(timestamp or datetime.now()).strftime("%H%M%S")
-    return build_pdf_filename(company, revision, f"{day}-{time_value}")
+    return build_pdf_filename(
+        company,
+        revision,
+        f"{day}-{time_value}",
+        local=local,
+        equipment_reference=equipment_reference,
+        equipment_type=equipment_type,
+        equipment_value=equipment_value,
+    )
 
 
-def build_custom_pdf_filename(company: str | None, revision: str | None, timestamp=None) -> str:
+def build_custom_pdf_filename(
+    company: str | None,
+    revision: str | None,
+    timestamp=None,
+    local: str | None = None,
+    equipment_reference: str | None = None,
+    equipment_type: str | None = None,
+    equipment_value: float | str | None = None,
+) -> str:
     value = pd.Timestamp(timestamp or datetime.now()).strftime("%Y%m%d-%H%M%S")
-    return build_pdf_filename(company, revision, value)
+    return build_pdf_filename(
+        company,
+        revision,
+        value,
+        local=local,
+        equipment_reference=equipment_reference,
+        equipment_type=equipment_type,
+        equipment_value=equipment_value,
+    )
 
 
 def next_pdf_suffix_path(path: Path) -> Path:
@@ -540,6 +611,7 @@ def export_figures_to_pdf(
     selected_graphs: list[str],
     output_dir: Path,
     zoom_mode: bool = False,
+    pdf_filename: str | None = None,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -579,7 +651,14 @@ def export_figures_to_pdf(
         if not temp_images:
             raise ValueError("Nenhum gráfico foi selecionado para exportação.")
 
-        pdf_filename = build_pdf_filename(processed.company, processed.revision)
+        pdf_filename = pdf_filename or build_pdf_filename(
+            processed.company,
+            processed.revision,
+            local=processed.local,
+            equipment_reference=processed.equipment_reference,
+            equipment_type=processed.equipment_type,
+            equipment_value=processed.equipment_value,
+        )
         pdf_path = ensure_unique_pdf_path(output_dir / pdf_filename)
         pdf.output(str(pdf_path))
 

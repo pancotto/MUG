@@ -740,7 +740,7 @@ def create_tension_graph(
             "text": (
                 f"<b>GRÁFICO TENSÃO - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</b></sub><br>"
                 f"<sub>FAIXA ADEQUADA {min_adequacy} ≤ TL ≤ {max_adequacy} - ANEEL PRODIST MÓDULO 8</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -849,7 +849,7 @@ def create_current_graph(
             "text": (
                 f"<b>GRÁFICO CORRENTE - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -958,7 +958,7 @@ def create_active_power_graph(
             "text": (
                 f"<b>GRÁFICO POTÊNCIA ATIVA - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1067,7 +1067,7 @@ def create_apparent_power_graph(
             "text": (
                 f"<b>GRÁFICO POTÊNCIA APARENTE - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1199,7 +1199,7 @@ def create_pf_graph(processed: ProcessedData, show_logo: bool = False) -> go.Fig
             "text": (
                 f"<b>GRÁFICO FATOR DE POTÊNCIA - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1312,7 +1312,7 @@ def create_tension_imbalance_graph(
             "text": (
                 f"<b>GRÁFICO DESEQUILÍBRIO DE TENSÃO - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</b></sub><br>"
                 f"<sub>LIMITE 3% - ANEEL PRODIST MÓDULO 8</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1380,7 +1380,7 @@ def create_current_imbalance_graph(processed: ProcessedData, show_logo: bool = F
             "text": (
                 f"<b>GRÁFICO DESEQUILÍBRIO DE CORRENTE - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1486,7 +1486,7 @@ def create_dht_voltage_graph(
             "text": (
                 f"<b>GRÁFICO DHT TENSÃO - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</b></sub><br>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</b></sub><br>"
                 f"<sub>LIMITE 10% - ANEEL PRODIST MÓDULO 8</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
@@ -1560,7 +1560,7 @@ def create_dht_current_graph(processed: ProcessedData, show_logo: bool = False) 
             "text": (
                 f"<b>GRÁFICO DHT CORRENTE - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1607,7 +1607,7 @@ def create_combined_vxi_graph(processed: ProcessedData, show_logo: bool = False)
             "text": (
                 f"<b>GRÁFICO TENSÃO & CORRENTE - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1658,7 +1658,7 @@ def create_combined_kwxkva_graph(processed: ProcessedData, show_logo: bool = Fal
             "text": (
                 f"<b>GRÁFICO POT. ATIVA & POT. APARENTE - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub>"
             ),
             "y": 0.98, "x": 0.5, "xanchor": "center", "yanchor": "top",
             "font": {"family": "Arial", "size": 15, "color": "#000000"},
@@ -1849,7 +1849,7 @@ def create_consumption_graph(
             "text": (
                 f"<b>GRÁFICO CONSUMO DE ENERGIA - {processed.company} - {processed.city}</b><br>"
                 f"<sub><b>{processed.local} - {processed.equipment_description()} - "
-                f"{processed.tension_display()} - INT: {processed.integration_time}s - REV{processed.revision}</sub><br>"
+                f"{processed.tension_display()} - INT: {processed.integration_display_text()} - REV{processed.revision}</sub><br>"
                 f"CONSUMO TOTAL: {total_text} kWh"
             ),
             "y": 0.98,
