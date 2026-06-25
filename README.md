@@ -2,9 +2,9 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.4.1**
+Current version: **v1.4.3**
 
-v1.4.1 is an operational infrastructure release focused on background update-check reliability, safer release automation and preparation for future report/laudo architecture work. It does not introduce user-facing workflow changes.
+v1.4.3 is a visual polish release focused on the final product-like splash screen refinement. It does not introduce data-processing, reporting or workflow changes.
 
 ---
 
@@ -75,6 +75,7 @@ Features:
 # 🖥️ Interface features
 
 - Dark mode interface
+- Lightweight cinematic startup splash screen
 - Responsive graphical layout
 - Global SELEÇÃO tab for measurement interval selection
 - Detected days table with complete/incomplete status
@@ -120,7 +121,7 @@ python app.py
 
 # 🚢 Release process
 
-The v1.4.1 release workflow is documented in:
+The release workflow is documented in:
 
 ```bash
 docs/releases/v1.4.1-release-process.md
@@ -129,7 +130,7 @@ docs/releases/v1.4.1-release-process.md
 Start with a safe dry-run style validation:
 
 ```bash
-python scripts/publish_release.py --version v1.4.1 --skip-benchmark
+python scripts/publish_release.py --version vX.Y.Z --skip-benchmark
 ```
 
 Full release actions such as commit, tag, push and GitHub publication require explicit flags plus `--yes`.

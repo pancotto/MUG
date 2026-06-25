@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.4.3
+
+### Startup UX
+
+- Refined the splash screen into a more product-like startup surface with official ECOCEL PNG branding, restrained dark graphite styling and technical waveform motion.
+- Added cycling startup messages, a thin activity sweep and a short finishing animation before the splash fades out.
+
+### Compatibility
+
+- No user-facing workflow changes.
+- Preserved ETL logic, graph calculations, PDF export behavior, filename standards, report logic, selection logic and update-check semantics.
+
+## v1.4.2
+
+### Startup UX
+
+- Added a lightweight PySide-only cinematic splash screen that appears before the main window is constructed.
+- Added a dark, minimalist animated startup surface with centered MUG identity, sine-wave motion and fade transitions.
+- Lazy-loaded the main window after the splash is visible to improve perceived startup responsiveness.
+
+### Infrastructure
+
+- Added a simple single-instance startup guard to reduce accidental multiple launches while MUG is already opening or running.
+- Kept splash rendering independent from internet access, Chromium, Plotly, Kaleido, ETL, PDF export and graph generation.
+
+### Tests
+
+- Added splash import/startup tests to verify the splash module is lightweight and the app import path does not pull in main-window/update-check dependencies.
+
+### Compatibility
+
+- No user-facing workflow changes.
+- Preserved ETL logic, graph calculations, PDF export behavior, filename standards, report logic, selection logic and update-check semantics.
+
 ## v1.4.1
 
 ### Infrastructure
