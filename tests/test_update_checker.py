@@ -1,4 +1,12 @@
-from core.update_checker import UpdateChecker
+import requests
+
+from core.update_checker import (
+    GITHUB_RELEASE_API,
+    UPDATE_REQUEST_HEADERS,
+    UPDATE_REQUEST_TIMEOUT_SECONDS,
+    UpdateChecker,
+)
+from ui.main_window import UpdateCheckWorker
 
 
 def _release_payload(assets):
@@ -22,6 +30,44 @@ def _mock_response(monkeypatch, payload):
         "core.update_checker.requests.get",
         lambda *args, **kwargs: Response(),
     )
+
+
+def test_get_latest_release_uses_timeout_and_user_agent(monkeypatch):
+    calls = []
+
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return _release_payload([])
+
+    def fake_get(*args, **kwargs):
+        calls.append((args, kwargs))
+        return Response()
+
+    monkeypatch.setattr("core.update_checker.requests.get", fake_get)
+
+    latest = UpdateChecker.get_latest_release()
+
+    assert latest["version"] == "1.3.4"
+    assert calls == [
+        (
+            (GITHUB_RELEASE_API,),
+            {
+                "timeout": UPDATE_REQUEST_TIMEOUT_SECONDS,
+                "headers": UPDATE_REQUEST_HEADERS,
+            },
+        )
+    ]
+
+
+def test_get_latest_release_returns_none_on_request_error(monkeypatch):
+    def raise_timeout(*args, **kwargs):
+        raise requests.Timeout("slow network")
+
+    monkeypatch.setattr("core.update_checker.requests.get", raise_timeout)
+
+    assert UpdateChecker.get_latest_release() is None
 
 
 def test_release_with_one_installer_asset_exposes_browser_download_url(monkeypatch):
@@ -177,3 +223,48 @@ def test_asset_selection_is_deterministic_for_equal_scores(monkeypatch):
 
     assert first == second
     assert first["asset_name"] == "a-installer.exe"
+
+
+def test_update_check_worker_emits_update_without_live_network(monkeypatch):
+    expected = {
+        "version": "9.9.9",
+        "browser_download_url": "https://example.invalid/MUG_Setup_v9.9.9.exe",
+    }
+    monkeypatch.setattr(
+        UpdateChecker,
+        "is_update_available",
+        staticmethod(lambda current_version: expected),
+    )
+
+    worker = UpdateCheckWorker("1.4.0")
+    finished = []
+    errors = []
+    worker.finished.connect(finished.append)
+    worker.error.connect(errors.append)
+
+    worker.run()
+
+    assert finished == [expected]
+    assert errors == []
+
+
+def test_update_check_worker_emits_none_on_error(monkeypatch):
+    def raise_error(current_version):
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(
+        UpdateChecker,
+        "is_update_available",
+        staticmethod(raise_error),
+    )
+
+    worker = UpdateCheckWorker("1.4.0")
+    finished = []
+    errors = []
+    worker.finished.connect(finished.append)
+    worker.error.connect(errors.append)
+
+    worker.run()
+
+    assert finished == [None]
+    assert errors == ["offline"]

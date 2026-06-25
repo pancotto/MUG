@@ -43,6 +43,11 @@ browser/
 *.log
 
 # =========================
+# Benchmark generated artifacts
+# =========================
+docs/benchmarks/artifacts/
+
+# =========================
 # OS files
 # =========================
 .DS_Store

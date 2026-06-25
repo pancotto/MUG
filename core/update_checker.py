@@ -5,6 +5,10 @@ from packaging.version import Version
 GITHUB_RELEASE_API = (
     "https://api.github.com/repos/pancotto/MUG/releases/latest"
 )
+UPDATE_REQUEST_TIMEOUT_SECONDS = 5
+UPDATE_REQUEST_HEADERS = {
+    "User-Agent": "MUG"
+}
 
 
 class UpdateChecker:
@@ -82,10 +86,8 @@ class UpdateChecker:
 
             response = requests.get(
                 GITHUB_RELEASE_API,
-                timeout=5,
-                headers={
-                    "User-Agent": "MUG"
-                }
+                timeout=UPDATE_REQUEST_TIMEOUT_SECONDS,
+                headers=UPDATE_REQUEST_HEADERS,
             )
 
             if response.status_code != 200:

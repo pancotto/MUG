@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, QTimer, QThread, Qt, Signal, Slot
 import webbrowser
 
 from PySide6.QtWidgets import QMainWindow, QStackedWidget, QMessageBox
@@ -7,6 +7,26 @@ from ui.input_page import InputPage
 from ui.graph_page import GraphPage, format_app_version, get_app_version
 from core.update_checker import UpdateChecker
 from ui.about_dialog import AboutDialog
+
+
+UPDATE_CHECK_STARTUP_DELAY_MS = 100
+
+
+class UpdateCheckWorker(QObject):
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, current_version: str):
+        super().__init__()
+        self.current_version = current_version
+
+    @Slot()
+    def run(self):
+        try:
+            self.finished.emit(UpdateChecker.is_update_available(self.current_version))
+        except Exception as exc:
+            self.error.emit(str(exc))
+            self.finished.emit(None)
 
 
 class MainWindow(QMainWindow):
@@ -36,8 +56,10 @@ class MainWindow(QMainWindow):
         self.show_input_page()
 
         self.available_update = None
+        self._update_thread: QThread | None = None
+        self._update_worker: UpdateCheckWorker | None = None
 
-        self.check_for_updates()
+        self.schedule_update_check()
 
     def set_processed_data(self, processed):
         self.processed_data = processed
@@ -127,7 +149,7 @@ class MainWindow(QMainWindow):
 
         self.available_update = None
 
-        self.check_for_updates()
+        self.schedule_update_check()
 
     def show_input_page(self):
         self.stack.setCurrentWidget(self.input_page)
@@ -139,101 +161,128 @@ class MainWindow(QMainWindow):
 
         self.stack.setCurrentWidget(self.graph_page)
 
+    def schedule_update_check(self):
+        QTimer.singleShot(UPDATE_CHECK_STARTUP_DELAY_MS, self.check_for_updates)
+
     def check_for_updates(self):
+        if self._update_thread is not None:
+            return
 
         try:
-
             current_version = get_app_version()
 
-            update = UpdateChecker.is_update_available(
-                current_version
-            )
+            self._update_thread = QThread(self)
+            self._update_worker = UpdateCheckWorker(current_version)
+            self._update_worker.moveToThread(self._update_thread)
 
-            self.available_update = update
+            self._update_thread.started.connect(self._update_worker.run)
+            self._update_worker.finished.connect(self._update_thread.quit)
+            self._update_worker.finished.connect(self._handle_update_check_finished)
+            self._update_worker.error.connect(self._handle_update_check_error)
+            self._update_thread.finished.connect(self._update_worker.deleteLater)
+            self._update_thread.finished.connect(self._update_thread.deleteLater)
+            self._update_thread.finished.connect(self._clear_update_thread_refs)
 
-            if not update:
-                return
-
-            message = (
-                f"Nova versão disponível!\n\n"
-                f"Versão atual: {format_app_version(current_version)}\n"
-                f"Nova versão: {format_app_version(update['version'])}\n\n"
-                f"Deseja baixar o instalador da nova versão?"
-            )
-
-            msg_box = QMessageBox(self)
-
-            msg_box.setWindowTitle("Atualização disponível")
-
-            msg_box.setText(message)
-
-            msg_box.setStyleSheet("""
-                QMessageBox {
-                    background-color: #111111;
-                    color: #f1f1f1;
-                }
-
-                QLabel {
-                    color: #f1f1f1;
-                    font-size: 12px;
-                }
-            """)
-
-            yes_button = msg_box.addButton(
-                "BAIXAR",
-                QMessageBox.ButtonRole.YesRole
-            )
-
-            no_button = msg_box.addButton(
-                "IGNORAR",
-                QMessageBox.ButtonRole.NoRole
-            )
-
-            yes_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #2d7d46;
-                    color: white;
-                    border: none;
-                    border-radius: 5px;
-                    padding: 10px 18px;
-                    min-width: 110px;
-                    font-weight: bold;
-                    text-align: center;
-                }
-
-                QPushButton:hover {
-                    background-color: #25673a;
-                }
-            """)
-
-            no_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #8b1e1e;
-                    color: white;
-                    border: none;
-                    border-radius: 5px;
-                    padding: 10px 18px;
-                    min-width: 110px;
-                    font-weight: bold;
-                    text-align: center;
-                }
-
-                QPushButton:hover {
-                    background-color: #a32626;
-                }
-            """)
-
-            msg_box.layout().setSpacing(12)
-
-            msg_box.exec()
-
-            if msg_box.clickedButton() == yes_button:
-
-                self.open_update_download(update)
+            self._update_thread.start()
 
         except Exception as e:
 
             print(f"[UPDATE CHECK ERROR] {e}")
+
+    @Slot(object)
+    def _handle_update_check_finished(self, update):
+        self.available_update = update
+
+        if not update:
+            return
+
+        current_version = get_app_version()
+
+        message = (
+            f"Nova versão disponível!\n\n"
+            f"Versão atual: {format_app_version(current_version)}\n"
+            f"Nova versão: {format_app_version(update['version'])}\n\n"
+            f"Deseja baixar o instalador da nova versão?"
+        )
+
+        msg_box = QMessageBox(self)
+
+        msg_box.setWindowTitle("Atualização disponível")
+
+        msg_box.setText(message)
+
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: #111111;
+                color: #f1f1f1;
+            }
+
+            QLabel {
+                color: #f1f1f1;
+                font-size: 12px;
+            }
+        """)
+
+        yes_button = msg_box.addButton(
+            "BAIXAR",
+            QMessageBox.ButtonRole.YesRole
+        )
+
+        no_button = msg_box.addButton(
+            "IGNORAR",
+            QMessageBox.ButtonRole.NoRole
+        )
+
+        yes_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2d7d46;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 18px;
+                min-width: 110px;
+                font-weight: bold;
+                text-align: center;
+            }
+
+            QPushButton:hover {
+                background-color: #25673a;
+            }
+        """)
+
+        no_button.setStyleSheet("""
+            QPushButton {
+                background-color: #8b1e1e;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 18px;
+                min-width: 110px;
+                font-weight: bold;
+                text-align: center;
+            }
+
+            QPushButton:hover {
+                background-color: #a32626;
+            }
+        """)
+
+        msg_box.layout().setSpacing(12)
+
+        msg_box.exec()
+
+        if msg_box.clickedButton() == yes_button:
+
+            self.open_update_download(update)
+
+    @Slot(str)
+    def _handle_update_check_error(self, message: str):
+        print(f"[UPDATE CHECK ERROR] {message}")
+
+    @Slot()
+    def _clear_update_thread_refs(self):
+        self._update_thread = None
+        self._update_worker = None
 
     def open_update_download(self, update: dict):
         direct_url = str(update.get("browser_download_url") or "").strip()

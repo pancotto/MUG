@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.1
+
+### Infrastructure
+
+- Moved startup update checking into a background worker so the main window can open normally when GitHub is slow, offline, blocked or returning errors.
+- Added a safe release publication orchestrator with validation, tests, benchmark execution, build hooks, installer hooks, checksum reporting, git inspection and opt-in commit/tag/push/GitHub release steps.
+- Added reusable GitHub Release notes generation from CHANGELOG data with optional installer SHA256 inclusion.
+- Ignored generated benchmark artifact folders to reduce accidental commits of temporary PDFs.
+
+### Tests
+
+- Added update-check timeout/error tests without live internet.
+- Added background update worker success/error tests.
+- Added release-notes generation tests for the publication script.
+
+### Compatibility
+
+- No user-facing workflow changes.
+- Preserved ETL logic, graph calculations, PDF export behavior, filename standards, report logic and filtering behavior.
+
 ## v1.4.0
 
 ### Quality and Infrastructure
