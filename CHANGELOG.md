@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.4.0
+
+### Quality and Infrastructure
+
+- Added release validation for VERSION, README, CHANGELOG, installer metadata, UI fallback versions, duplicate version display tokens and benchmark pointers.
+- Improved Windows build reproducibility by making the PyInstaller spec eligible for version control and hardening build_exe.bat error handling.
+- Added ETL regression coverage for Primata TXT, Primata XLSX when available and Embrasul TXT fixtures.
+- Added smoke coverage for all graph builders using a small processed dataset, including source-data mutation checks.
+- Replaced the version-specific benchmark entry point with a generic release benchmark workflow while keeping the old script as a compatibility wrapper.
+- Added benchmark outputs for versioned Markdown, versioned JSON and latest benchmark pointers.
+
+### Compatibility
+
+- No user-facing workflow changes.
+- Preserved ETL logic, graph calculations, PDF export behavior, filename standards and filtering behavior.
+
 ## v1.3.9
 
 ### New Features

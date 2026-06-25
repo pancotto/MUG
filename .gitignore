@@ -24,6 +24,7 @@ env/
 build/
 dist/
 *.spec
+!MUG.spec
 
 # =========================
 # Installer / Executables
@@ -67,6 +68,7 @@ Thumbs.db
 # Python cache / tooling
 # =========================
 .pytest_cache/
+.tmp_pytest/
 .mypy_cache/
 .ruff_cache/
 

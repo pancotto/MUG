@@ -90,7 +90,7 @@ from ui.input_validation import (
 )
 
 
-APP_VERSION_FALLBACK = "1.3.9"
+APP_VERSION_FALLBACK = "1.4.0"
 CUSTOM_DAILY_PDF_MAX_WORKERS = 2
 
 

@@ -2,7 +2,9 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.3.9**
+Current version: **v1.4.0**
+
+v1.4.0 is an infrastructure and quality release focused on release validation, test coverage, benchmark automation and reproducible Windows builds. It does not introduce user-facing workflow changes.
 
 ---
 
@@ -14,8 +16,7 @@ Current version: **v1.3.9**
 - Pandas for data processing
 - PyInstaller for Windows executable generation
 - Inno Setup for Windows installer generation
-- Embedded Chromium for PDF rendering
-- Kaleido for static PDF/image export
+- Kaleido/Chromium-compatible static PDF and image export
 
 ---
 
@@ -93,7 +94,7 @@ Features:
 - A4 landscape layout
 - One graph per page
 - Default graph preset selection
-- Embedded Chromium rendering support
+- Kaleido/Chromium-compatible rendering support
 - Professional report-oriented layout
 
 ---
