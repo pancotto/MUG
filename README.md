@@ -2,9 +2,9 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.5.0**
+Current version: **v1.6.0**
 
-v1.5.0 is an Enterprise Foundation release focused on layered architecture, service boundaries, configuration, logging and future Report Engine readiness. It does not introduce user-facing workflow changes.
+v1.6.0 modernizes the measurement-selection workflow with an enterprise drop zone, lightweight file validation and clearer guided progression from file selection to metadata completion and graph generation.
 
 ---
 

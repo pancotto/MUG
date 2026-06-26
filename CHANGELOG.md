@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.6.0
+
+### UX Modernization
+
+- Redesigned the input workflow around a guided measurement-selection flow: select measurement, validate file, complete metadata and generate graphs.
+- Replaced the traditional file-selection button with a large interactive drop zone supporting click selection, drag and drop, hover feedback, drag highlighting and keyboard access.
+- Added lightweight measurement-file validation before ETL processing, including manufacturer detection, format compatibility, header inspection, estimated period, integration interval and record count.
+- Kept Primata and Embrasul reference image buttons below the drop zone, separate from file selection.
+- Defaulted the revision field to `00` while preserving manual editing.
+
+### Compatibility
+
+- Preserved ETL processing, graph calculations, PDF/image export behavior, filename standards, update checking, splash behavior and the v1.5.0 service/container architecture.
+
 ## v1.5.0
 
 ### Enterprise Foundation

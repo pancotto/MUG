@@ -33,6 +33,14 @@ class ServiceContainer:
         return self._instances["data_processing_service"]
 
     @property
+    def measurement_validation_service(self):
+        if "measurement_validation_service" not in self._instances:
+            from services.measurement_validation_service import MeasurementValidationService
+
+            self._instances["measurement_validation_service"] = MeasurementValidationService()
+        return self._instances["measurement_validation_service"]
+
+    @property
     def graph_service(self):
         if "graph_service" not in self._instances:
             from services.graph_service import GraphService

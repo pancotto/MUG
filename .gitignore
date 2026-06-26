@@ -74,6 +74,7 @@ Thumbs.db
 # =========================
 .pytest_cache/
 .tmp_pytest/
+.tmp_pytest*/
 .mypy_cache/
 .ruff_cache/
 

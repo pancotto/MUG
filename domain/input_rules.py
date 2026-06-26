@@ -18,6 +18,7 @@ class AnalysisInputValues:
     local: str
     revision: str
     selected_path: Path | None
+    measurement_is_valid: bool = True
 
 
 def normalize_analysis_values(values: AnalysisInputValues) -> AnalysisInputValues:
@@ -30,6 +31,7 @@ def normalize_analysis_values(values: AnalysisInputValues) -> AnalysisInputValue
         local=values.local.strip().upper(),
         revision=values.revision.strip(),
         selected_path=values.selected_path,
+        measurement_is_valid=values.measurement_is_valid,
     )
 
 
@@ -54,6 +56,8 @@ def validate_analysis_values(values: AnalysisInputValues) -> tuple[bool, str]:
         return False, "Selecione o arquivo de dados."
     if values.selected_path.suffix.lower() not in [".xlsx", ".txt"]:
         return False, "O arquivo selecionado deve ser .xlsx ou .txt."
+    if not values.measurement_is_valid:
+        return False, "Selecione um arquivo de medição válido."
 
     try:
         numeric_equipment_value = float(values.equipment_value)
@@ -87,4 +91,3 @@ def build_input_data(values: AnalysisInputValues) -> InputData:
         revision=values.revision,
         excel_path=values.selected_path,
     )
-

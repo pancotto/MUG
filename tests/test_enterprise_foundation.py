@@ -18,6 +18,15 @@ def test_service_container_is_lazy_for_heavy_services():
     assert container._instances == {}
 
 
+def test_service_container_exposes_lightweight_measurement_validation_service():
+    container = create_service_container()
+
+    service = container.measurement_validation_service
+
+    assert service is container.measurement_validation_service
+    assert "measurement_validation_service" in container._instances
+
+
 def test_event_bus_publishes_to_subscribers():
     bus = EventBus()
     received = []
@@ -68,3 +77,22 @@ def test_domain_input_rules_reject_missing_file_with_existing_message():
     )
 
     assert validate_analysis_values(values) == (False, "Selecione o arquivo de dados.")
+
+
+def test_domain_input_rules_reject_invalid_measurement_validation(tmp_path):
+    values = AnalysisInputValues(
+        company="ECOCEL",
+        city="VITORIA/ES",
+        equipment_type="TRAFO",
+        equipment_reference="TRAFO 01",
+        equipment_value="500",
+        local="LADO FONTE",
+        revision="00",
+        selected_path=tmp_path / "medicao.txt",
+        measurement_is_valid=False,
+    )
+
+    assert validate_analysis_values(values) == (
+        False,
+        "Selecione um arquivo de medição válido.",
+    )

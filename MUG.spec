@@ -1,11 +1,23 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+
+def asset_datas():
+    entries = []
+    assets_root = Path('assets')
+    for path in sorted(assets_root.rglob('*')):
+        if not path.is_file() or path.name == 'primata_cola_old.png':
+            continue
+        entries.append((str(path), str(path.parent)))
+    return entries
+
+
 a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('assets', 'assets'),
+    datas=asset_datas() + [
         ('VERSION', '.'),
     ],
     hiddenimports=[],

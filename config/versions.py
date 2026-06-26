@@ -5,7 +5,7 @@ from __future__ import annotations
 from config.paths import get_version_file_candidates
 
 
-APP_VERSION_FALLBACK = "1.5.0"
+APP_VERSION_FALLBACK = "1.6.0"
 
 
 def get_app_version(fallback: str = APP_VERSION_FALLBACK) -> str:
@@ -32,4 +32,3 @@ def version_without_v(version: str) -> str:
     if clean.lower().startswith("v"):
         return clean[1:]
     return clean
-

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from config.paths import get_asset_path, get_logo_asset_path
 from config.versions import format_app_version as _format_app_version
 from config.versions import get_app_version as _get_app_version
 from domain.input_rules import (
@@ -8,10 +9,11 @@ from domain.input_rules import (
     normalize_analysis_values,
     validate_analysis_values,
 )
+from domain.measurement_validation import MeasurementValidationResult
 from services.container import get_service_container
 
 
-APP_VERSION_FALLBACK = "1.5.0"
+APP_VERSION_FALLBACK = "1.6.0"
 
 
 def get_app_version() -> str:
@@ -29,14 +31,15 @@ def format_app_version(version: str) -> str:
     return _format_app_version(version)
 
 
-from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread, QTimer
+from PySide6.QtGui import QColor, QPixmap
 from ui.about_dialog import AboutDialog
 from ui.input_validation import (
     enable_uppercase_input,
     set_decimal_number_validator,
     set_digits_only_validator,
 )
+from ui.measurement_drop_zone import MeasurementDropZone
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -52,6 +55,9 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QButtonGroup,
     QScrollArea,
+    QSizePolicy,
+    QBoxLayout,
+    QGraphicsDropShadowEffect,
 )
 
 
@@ -68,6 +74,209 @@ class ClickableLabel(QLabel):
         if self._callback:
             self._callback()
         super().mousePressEvent(event)
+
+
+class ReferenceImageCard(QFrame):
+    def __init__(
+        self,
+        title: str,
+        image_path: Path,
+        callback,
+        logo_path: Path | None = None,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self._callback = callback
+        self._image_pixmap = QPixmap(str(image_path))
+        self._logo_pixmap = QPixmap(str(logo_path)) if logo_path else QPixmap()
+        self._hovered = False
+
+        self.setObjectName("referenceImageCard")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setMinimumSize(230, 190)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setAccessibleName(f"Referência {title}")
+        self.setAccessibleDescription(f"Abrir imagem de referência {title}.")
+        self.setToolTip("Clique para ampliar a referência")
+        self.setStyleSheet("""
+            QFrame#referenceImageCard {
+                background-color: #101725;
+                border: 1px solid #1d2b40;
+                border-radius: 12px;
+            }
+            QFrame#referenceImageCard:hover {
+                background-color: #13233a;
+                border: 1px solid #2f7df0;
+            }
+            QLabel {
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        self._shadow = QGraphicsDropShadowEffect(self)
+        self._shadow.setBlurRadius(0)
+        self._shadow.setOffset(0, 0)
+        self._shadow.setColor(QColor(47, 125, 240, 0))
+        self.setGraphicsEffect(self._shadow)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(14, 12, 14, 14)
+        layout.setSpacing(10)
+
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(10)
+
+        self.logo_label = QLabel()
+        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.logo_label.setVisible(not self._logo_pixmap.isNull())
+        self.logo_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        self.title_label = QLabel(title)
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.title_label.setStyleSheet("""
+            font-size: 12px;
+            font-weight: 700;
+            color: #eaf1fb;
+        """)
+
+        header_layout.addWidget(self.logo_label, 0)
+        header_layout.addWidget(self.title_label, 1)
+
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setMinimumHeight(120)
+        self.image_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.image_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.image_label.setStyleSheet("""
+            QLabel {
+                background-color: #ffffff;
+                border-radius: 8px;
+                padding: 4px;
+            }
+        """)
+
+        layout.addLayout(header_layout)
+        layout.addWidget(self.image_label, 1)
+        self.setLayout(layout)
+
+        self._refresh_pixmaps()
+
+    def resizeEvent(self, event):
+        self._refresh_pixmaps()
+        super().resizeEvent(event)
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self._shadow.setBlurRadius(26)
+        self._shadow.setOffset(0, 4)
+        self._shadow.setColor(QColor(47, 125, 240, 95))
+        self._refresh_pixmaps()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self._shadow.setBlurRadius(0)
+        self._shadow.setOffset(0, 0)
+        self._shadow.setColor(QColor(47, 125, 240, 0))
+        self._refresh_pixmaps()
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._callback()
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self._callback()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def _refresh_pixmaps(self):
+        if not self._logo_pixmap.isNull():
+            self.logo_label.setPixmap(
+                self._logo_pixmap.scaled(
+                    86,
+                    34,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+
+        if self._image_pixmap.isNull():
+            return
+
+        available = self.image_label.contentsRect().size()
+        if available.width() <= 0 or available.height() <= 0:
+            return
+
+        zoom = 1.025 if self._hovered else 1.0
+        self.image_label.setPixmap(
+            self._image_pixmap.scaled(
+                max(1, int((available.width() - 8) * zoom)),
+                max(1, int((available.height() - 8) * zoom)),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
+
+
+class MeasurementReferenceSection(QWidget):
+    def __init__(self, title: QLabel, cards: list[ReferenceImageCard], parent=None):
+        super().__init__(parent)
+        self._cards = cards
+        self._stacked = False
+        self.setObjectName("measurementReferenceSection")
+        self.setMinimumHeight(250)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setStyleSheet("""
+            QWidget#measurementReferenceSection {
+                background-color: transparent;
+                border: none;
+            }
+        """)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 4, 0, 0)
+        layout.setSpacing(10)
+
+        self.cards_layout = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self.cards_layout.setContentsMargins(0, 0, 0, 0)
+        self.cards_layout.setSpacing(14)
+        for card in self._cards:
+            self.cards_layout.addWidget(card, 1)
+
+        layout.addWidget(title)
+        layout.addLayout(self.cards_layout, 1)
+        self.setLayout(layout)
+
+    def resizeEvent(self, event):
+        self._update_direction()
+        super().resizeEvent(event)
+
+    def showEvent(self, event):
+        self._update_direction()
+        super().showEvent(event)
+
+    def _update_direction(self):
+        window_width = self.window().width() if self.window() else self.width()
+        should_stack = window_width < 1400
+        if should_stack == self._stacked:
+            return
+
+        self._stacked = should_stack
+        self.cards_layout.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if self._stacked
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self.setMinimumHeight(430 if self._stacked else 250)
+        for card in self._cards:
+            card.setMinimumHeight(175 if self._stacked else 190)
 
 
 class DataProcessingWorker(QObject):
@@ -94,6 +303,7 @@ class InputPage(QWidget):
         self.main_window = main_window
         self.services = service_container or get_service_container()
         self.selected_excel_path: Path | None = None
+        self.measurement_validation: MeasurementValidationResult | None = None
         self.assets = self.services.assets
         self._processing_thread: QThread | None = None
         self._processing_worker: DataProcessingWorker | None = None
@@ -111,7 +321,7 @@ class InputPage(QWidget):
         root_layout = QVBoxLayout()
         root_layout.setContentsMargins(30, 25, 30, 25)
         root_layout.setSpacing(18)
-        root_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        root_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         title = QLabel("MUG - ANALISADOR GRÁFICO DE GRANDEZAS ELÉTRICAS")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -125,10 +335,11 @@ class InputPage(QWidget):
         """)
 
         form_card = QFrame()
-        form_card.setMaximumWidth(1200)
-        form_card.setMinimumWidth(820)
+        form_card.setObjectName("inputFormCard")
+        form_card.setMinimumWidth(760)
+        form_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         form_card.setStyleSheet("""
-            QFrame {
+            QFrame#inputFormCard {
                 background-color: #000000;
                 border: 1px solid #000000;
                 border-radius: 12px;
@@ -136,8 +347,8 @@ class InputPage(QWidget):
         """)
 
         form_layout = QVBoxLayout()
-        form_layout.setContentsMargins(30, 24, 30, 24)
-        form_layout.setSpacing(14)
+        form_layout.setContentsMargins(26, 22, 26, 18)
+        form_layout.setSpacing(12)
         form_layout.addWidget(title)
 
         self.company_input = self._create_labeled_input("EMPRESA", "Ex.: ECOCEL")
@@ -147,49 +358,40 @@ class InputPage(QWidget):
         self.equipment_value_input = self._create_labeled_input("POTÊNCIA (kVA)", "Ex.: 500")
         self.local_input = self._create_labeled_input("LOCAL", "Ex.: LADO FONTE ou LADO CARGA")
         self.revision_input = self._create_labeled_input("REVISÃO", "Ex.: 00")
+        self.revision_input["input"].setText("00")
 
-        self.file_label_title = QLabel("ARQUIVO DE DADOS")
-        self.file_label_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.file_label_title.setStyleSheet("""
+        self.measurement_step_title = QLabel("ETAPA 1 - SELECIONAR MEDIÇÃO")
+        self.measurement_step_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.measurement_step_title.setStyleSheet("""
             font-size: 13px;
             font-weight: bold;
-            color: #f1f1f1;
+            color: #ffffff;
             background-color: transparent;
         """)
 
-        self.file_path_label = QLabel("Nenhum arquivo selecionado")
-        self.file_path_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.file_path_label.setWordWrap(True)
-        self.file_path_label.setStyleSheet("""
-            color: #d0d0d0;
-            background-color: #101010;
-            border: 1px solid #101010;
-            border-radius: 8px;
-            padding: 10px;
+        self.measurement_step_subtitle = QLabel(
+            "Selecione ou arraste o arquivo da medição para iniciar a análise."
+        )
+        self.measurement_step_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.measurement_step_subtitle.setWordWrap(True)
+        self.measurement_step_subtitle.setStyleSheet("""
             font-size: 13px;
+            color: #9fb0c4;
+            background-color: transparent;
         """)
 
-        self.select_file_button = QPushButton("SELECIONAR ARQUIVO - PRIMATA/EMBRASUL")
-        self.select_file_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.select_file_button.setStyleSheet("""
-            QPushButton {
-                background-color: #2d7d46;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 14px;
-                font-weight: bold;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #25673a;
-            }
-            QPushButton:disabled {
-                background-color: #1f5131;
-                color: #d0d0d0;
-            }
+        self.drop_zone = MeasurementDropZone()
+        self.drop_zone.open_file_requested.connect(self.select_data_file)
+        self.drop_zone.file_dropped.connect(self.handle_selected_file)
+
+        self.metadata_step_title = QLabel("ETAPA 2 - COMPLETAR IDENTIFICAÇÃO")
+        self.metadata_step_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.metadata_step_title.setStyleSheet("""
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: transparent;
         """)
-        self.select_file_button.clicked.connect(self.select_data_file)
 
         self.generate_button = QPushButton("GERAR GRÁFICOS")
         self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -212,6 +414,8 @@ class InputPage(QWidget):
             }
         """)
         self.generate_button.clicked.connect(self.on_generate_clicked)
+        self.generate_button.setDisabled(True)
+        self.generate_button.setToolTip("Selecione uma medição válida primeiro.")
 
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -271,22 +475,46 @@ class InputPage(QWidget):
         data_row_layout.addWidget(self.equipment_reference_input["container"], 1)
         data_row_layout.addWidget(self.equipment_value_input["container"], 1)
 
-        form_layout.addLayout(top_row_layout)
-        form_layout.addLayout(equipment_row_layout)
-        form_layout.addLayout(data_row_layout)
-        form_layout.addSpacing(4)
-        form_layout.addWidget(self.file_label_title)
-        form_layout.addWidget(self.file_path_label)
-        form_layout.addWidget(self.select_file_button)
-        form_layout.addSpacing(8)
-        form_layout.addWidget(self.generate_button)
-        form_layout.addWidget(self.status_label)
-        form_layout.addWidget(self.progress_bar)
+        left_column = QWidget()
+        left_column.setMinimumWidth(260)
+        left_column.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        left_column.setStyleSheet("background-color: transparent;")
+        left_layout = QVBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
+        left_layout.addWidget(self.measurement_step_title)
+        left_layout.addWidget(self.measurement_step_subtitle)
+        left_layout.addWidget(self.drop_zone, 1)
+        left_column.setLayout(left_layout)
 
-        logos_layout = self._create_logos_layout()
-        if logos_layout:
-            form_layout.addSpacing(8)
-            form_layout.addLayout(logos_layout)
+        right_column = QWidget()
+        right_column.setMinimumWidth(430)
+        right_column.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        right_column.setStyleSheet("background-color: transparent;")
+        right_layout = QVBoxLayout()
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(14)
+        right_layout.addWidget(self.metadata_step_title)
+        right_layout.addLayout(top_row_layout)
+        right_layout.addLayout(equipment_row_layout)
+        right_layout.addLayout(data_row_layout)
+        right_layout.addSpacing(8)
+        right_layout.addWidget(self.generate_button)
+        right_layout.addWidget(self.status_label)
+        right_layout.addWidget(self.progress_bar)
+        reference_section = self._create_reference_section()
+        if reference_section:
+            right_layout.addWidget(reference_section, 1)
+        else:
+            right_layout.addStretch(1)
+        right_column.setLayout(right_layout)
+
+        workflow_layout = QHBoxLayout()
+        workflow_layout.setContentsMargins(0, 0, 0, 0)
+        workflow_layout.setSpacing(28)
+        workflow_layout.addWidget(left_column, 1)
+        workflow_layout.addWidget(right_column, 2)
+        form_layout.addLayout(workflow_layout, 1)
 
         self.version_label = ClickableLabel()
         self.version_label.setText(format_app_version(get_app_version()))
@@ -306,7 +534,6 @@ class InputPage(QWidget):
         """)
         self.version_label.set_click_callback(self.show_about_dialog)
 
-        form_layout.addSpacing(2)
         form_layout.addWidget(self.version_label)
 
         form_card.setLayout(form_layout)
@@ -339,15 +566,15 @@ class InputPage(QWidget):
         """)
 
         scroll_container = QWidget()
+        scroll_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         scroll_container.setStyleSheet("background-color: transparent;")
         scroll_layout = QVBoxLayout()
         scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
-        scroll_layout.addWidget(form_card)
+        scroll_layout.addWidget(form_card, 1)
         scroll_container.setLayout(scroll_layout)
         scroll_area.setWidget(scroll_container)
 
-        root_layout.addWidget(scroll_area)
+        root_layout.addWidget(scroll_area, 1)
         self.setLayout(root_layout)
 
     def _enable_uppercase_input(self, line_edit: QLineEdit):
@@ -506,79 +733,87 @@ class InputPage(QWidget):
             "input": line_edit,
         }
 
-    def _create_logos_layout(self):
-        logos_layout = QHBoxLayout()
-        logos_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logos_layout.setSpacing(28)
+    def _create_reference_section(self):
+        title = QLabel("REFERÊNCIAS DOS MEDIDORES")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("""
+            font-size: 12px;
+            font-weight: 700;
+            color: #9fb0c4;
+            background-color: transparent;
+        """)
 
-        primata_logo = self._create_logo_widget(
+        primata_card = self._create_reference_card(
+            title="Primata P55",
+            image_attr="primata_cola",
+            fallback_image="primata_cola.png",
             logo_attr="primata_logo",
-            fallback_filename="primata_logo.png",
-            tooltip="Clique para visualizar a colinha do Primata",
+            fallback_logo="primata_logo.png",
             callback=self.show_primata_cola,
-            width=170,
-            height=60,
         )
-
-        embrasul_logo = self._create_logo_widget(
+        embrasul_card = self._create_reference_card(
+            title="Embrasul RE7080",
+            image_attr="embrasul_cola",
+            fallback_image="embrasul_cola.png",
             logo_attr="embrasul_logo",
-            fallback_filename="embrasul_logo.png",
-            tooltip="Clique para visualizar a colinha da Embrasul",
+            fallback_logo="embrasul_logo.png",
             callback=self.show_embrasul_cola,
-            width=170,
-            height=60,
         )
 
-        has_any_logo = False
+        cards = []
+        if primata_card:
+            cards.append(primata_card)
+        if embrasul_card:
+            cards.append(embrasul_card)
 
-        if primata_logo:
-            logos_layout.addWidget(primata_logo)
-            has_any_logo = True
-
-        if embrasul_logo:
-            logos_layout.addWidget(embrasul_logo)
-            has_any_logo = True
-
-        return logos_layout if has_any_logo else None
-
-    def _create_logo_widget(
-        self,
-        logo_attr: str,
-        fallback_filename: str,
-        tooltip: str,
-        callback,
-        width: int = 170,
-        height: int = 60,
-    ):
-        logo_path = None
-
-        if self.assets and getattr(self.assets, logo_attr, None):
-            logo_path = getattr(self.assets, logo_attr)
-
-        if not logo_path:
-            logo_path = Path(__file__).resolve().parent.parent / "assets" / fallback_filename
-
-        if not logo_path or not Path(logo_path).exists():
+        if not cards:
             return None
 
-        pixmap = QPixmap(str(logo_path))
+        return MeasurementReferenceSection(title, cards)
+
+    def _create_reference_card(
+        self,
+        title: str,
+        image_attr: str,
+        fallback_image: str,
+        logo_attr: str,
+        fallback_logo: str,
+        callback,
+    ):
+        image_path = self._resolve_asset_path(image_attr, fallback_image)
+        if not image_path or not image_path.exists():
+            return None
+
+        pixmap = QPixmap(str(image_path))
         if pixmap.isNull():
             return None
 
-        logo_label = ClickableLabel()
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_label.setToolTip(tooltip)
-        logo_label.setPixmap(
-            pixmap.scaled(
-                width,
-                height,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-        )
-        logo_label.set_click_callback(callback)
+        logo_path = self._resolve_asset_path(logo_attr, fallback_logo, logo=True)
 
-        return logo_label
+        return ReferenceImageCard(
+            title=title,
+            image_path=image_path,
+            logo_path=logo_path,
+            callback=callback,
+        )
+
+    def _resolve_asset_path(
+        self,
+        asset_attr: str,
+        fallback_filename: str,
+        logo: bool = False,
+    ) -> Path | None:
+        asset_path = None
+
+        if self.assets and getattr(self.assets, asset_attr, None):
+            asset_path = getattr(self.assets, asset_attr)
+
+        if not asset_path:
+            resolver = get_logo_asset_path if logo else get_asset_path
+            asset_path = resolver(fallback_filename)
+
+        asset_path = Path(asset_path)
+        return asset_path if asset_path.exists() else None
 
     def show_primata_cola(self):
         self._show_cola_dialog(
@@ -601,7 +836,7 @@ class InputPage(QWidget):
             cola_path = getattr(self.assets, cola_attr)
 
         if not cola_path:
-            cola_path = Path(__file__).resolve().parent.parent / "assets" / fallback_filename
+            cola_path = get_asset_path(fallback_filename)
 
         if not cola_path or not Path(cola_path).exists():
             QMessageBox.warning(
@@ -698,14 +933,57 @@ class InputPage(QWidget):
     def select_data_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Selecionar arquivo de dados",
+            "Selecionar arquivo de medição",
             "",
-            "Arquivos de dados (*.xlsx *.txt);;Planilha Primata (*.xlsx);;Texto Embrasul (*.txt)"
+            "Arquivos de medição (*.txt *.xlsx);;Texto Primata/Embrasul (*.txt);;Planilha Primata (*.xlsx);;Todos os arquivos (*)"
         )
 
         if file_path:
-            self.selected_excel_path = Path(file_path)
-            self.file_path_label.setText(str(self.selected_excel_path))
+            self.handle_selected_file(Path(file_path))
+
+    def handle_selected_file(self, file_path: Path):
+        self.selected_excel_path = Path(file_path)
+        self.measurement_validation = None
+        self.drop_zone.set_validation_progress("Selecionando arquivo...")
+        self._update_generate_button_availability()
+        QTimer.singleShot(0, lambda: self._start_measurement_validation(Path(file_path)))
+
+    def _start_measurement_validation(self, file_path: Path):
+        self.drop_zone.set_validation_progress("Validando medição...")
+        QTimer.singleShot(0, lambda: self._finish_measurement_validation(file_path))
+
+    def _finish_measurement_validation(self, file_path: Path):
+        try:
+            result = self.services.measurement_validation_service.validate(file_path)
+        except Exception as exc:
+            self.services.error_service.log_exception(
+                exc,
+                "Falha na validação da medição",
+            )
+            result = MeasurementValidationResult(
+                path=file_path,
+                status="invalid",
+                file_type=file_path.suffix.lower().lstrip(".").upper(),
+                message="Falha ao validar a medição.",
+            )
+
+        self.measurement_validation = result
+        self.selected_excel_path = result.path
+        self.drop_zone.set_validation_result(result)
+        self._update_generate_button_availability()
+
+    def _update_generate_button_availability(self):
+        can_generate = (
+            self.selected_excel_path is not None
+            and self.measurement_validation is not None
+            and self.measurement_validation.is_valid
+        )
+        self.generate_button.setDisabled(not can_generate)
+        self.generate_button.setToolTip(
+            ""
+            if can_generate
+            else "Selecione uma medição válida primeiro."
+        )
 
     def normalize_inputs(self):
         values = normalize_analysis_values(self._analysis_input_values())
@@ -726,6 +1004,11 @@ class InputPage(QWidget):
             local=self.local_input["input"].text(),
             revision=self.revision_input["input"].text(),
             selected_path=self.selected_excel_path,
+            measurement_is_valid=(
+                True
+                if self.measurement_validation is None
+                else self.measurement_validation.is_valid
+            ),
         )
 
     def validate_form(self) -> tuple[bool, str]:
@@ -734,7 +1017,7 @@ class InputPage(QWidget):
 
     def set_processing_state(self, processing: bool):
         self.generate_button.setDisabled(processing)
-        self.select_file_button.setDisabled(processing)
+        self.drop_zone.setDisabled(processing)
 
         for field in [
             self.company_input["input"],
@@ -758,6 +1041,7 @@ class InputPage(QWidget):
         else:
             self.generate_button.setText("GERAR GRÁFICOS")
             self.status_label.setText("")
+            self._update_generate_button_availability()
 
     def on_generate_clicked(self):
         is_valid, message = self.validate_form()
