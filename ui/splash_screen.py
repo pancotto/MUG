@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 
 from PySide6.QtCore import (
     QEasingCurve,
@@ -26,6 +24,8 @@ from PySide6.QtGui import (
     QRadialGradient,
 )
 from PySide6.QtWidgets import QApplication, QGraphicsOpacityEffect, QWidget
+
+from config.paths import get_logo_asset_path
 
 
 SPLASH_WIDTH = 960
@@ -67,7 +67,7 @@ class MugSplashScreen(QWidget):
         self._started_at = QElapsedTimer()
         self._finish_started_at = QElapsedTimer()
         self._main_window_to_activate: QWidget | None = None
-        self._logo = QPixmap(str(_asset_path("assets", "logo.png")))
+        self._logo = QPixmap(str(get_logo_asset_path("logo.png")))
 
         self._opacity_effect = QGraphicsOpacityEffect(self)
         self._opacity_effect.setOpacity(1.0)
@@ -441,12 +441,6 @@ class MugSplashScreen(QWidget):
         elapsed = self._started_at.elapsed() if self._started_at.isValid() else 0
         index = min(len(STARTUP_MESSAGES) - 2, elapsed // 260)
         return STARTUP_MESSAGES[int(index)]
-
-
-def _asset_path(*parts: str) -> Path:
-    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
-    return base.joinpath(*parts)
-
 
 def show_splash_screen() -> MugSplashScreen | None:
     try:

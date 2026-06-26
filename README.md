@@ -2,9 +2,9 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.4.3**
+Current version: **v1.5.0**
 
-v1.4.3 is a visual polish release focused on the final product-like splash screen refinement. It does not introduce data-processing, reporting or workflow changes.
+v1.5.0 is an Enterprise Foundation release focused on layered architecture, service boundaries, configuration, logging and future Report Engine readiness. It does not introduce user-facing workflow changes.
 
 ---
 

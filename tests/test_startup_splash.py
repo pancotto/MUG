@@ -98,7 +98,7 @@ def test_splash_uses_product_style_horizontal_composition():
     assert "def _draw_signal_artwork" in source
     assert "def _draw_status_strip" in source
     assert "def _draw_logo" in source
-    assert 'QPixmap(str(_asset_path("assets", "logo.png")))' in source
+    assert 'QPixmap(str(get_logo_asset_path("logo.png")))' in source
     assert "content_rect.width() * 0.38" in source
     assert "drawRoundedRect(track_rect" in source
     assert "drawEllipse(QPointF(0, 0), 178, 84)" not in source

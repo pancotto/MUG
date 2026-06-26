@@ -9,14 +9,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
 )
 
-from core.update_checker import UpdateChecker
-
-
-def format_app_version(version: str) -> str:
-    clean = str(version or "").strip()
-    if clean.lower().startswith("v"):
-        return f"v{clean[1:]}"
-    return f"v{clean}"
+from config.versions import format_app_version
+from services.container import get_service_container
 
 
 class AboutDialog(QDialog):
@@ -25,16 +19,14 @@ class AboutDialog(QDialog):
         self,
         parent=None,
         app_version="1.0.0",
-        available_update=None
+        available_update=None,
+        update_service=None,
     ):
         super().__init__(parent)
 
         self.available_update = available_update
+        self.update_service = update_service or get_service_container().update_service
         display_version = format_app_version(app_version)
-
-        print("\n[ABOUT DIALOG]")
-        print("available_update:")
-        print(self.available_update)
 
         self.setWindowTitle("Sobre o MUG")
         self.setFixedSize(520, 420)
@@ -178,8 +170,8 @@ class AboutDialog(QDialog):
     def open_update_download(self):
         direct_url = str(self.available_update.get("browser_download_url") or "").strip()
         if not direct_url:
-            direct_url = UpdateChecker.get_direct_download_url(self.available_update)
-        release_url = UpdateChecker.get_release_page_url(self.available_update)
+            direct_url = self.update_service.get_direct_download_url(self.available_update)
+        release_url = self.update_service.get_release_page_url(self.available_update)
         target_url = direct_url or release_url
 
         if not target_url:

@@ -1,5 +1,5 @@
 #define MyAppName "MUG"
-#define MyAppVersion "1.4.3"
+#define MyAppVersion "1.5.0"
 #define MyAppPublisher "ECOCEL"
 #define MyAppExeName "MUG.exe"
 
@@ -21,7 +21,7 @@ SolidCompression=yes
 
 WizardStyle=modern
 
-SetupIconFile=assets\mug.ico
+SetupIconFile=assets\icons\mug.ico
 UninstallDisplayIcon={app}\MUG.exe
 
 ArchitecturesInstallIn64BitMode=x64compatible

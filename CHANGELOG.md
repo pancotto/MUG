@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.5.0
+
+### Enterprise Foundation
+
+- Added configuration, infrastructure, domain, service and reports package boundaries to prepare MUG for scalable future report generation.
+- Introduced a service container for dependency injection across UI workflows.
+- Added centralized logging, error handling and a lightweight internal event bus.
+- Moved input validation rules into the domain layer and routed ETL, graph, PDF and update operations through service boundaries.
+- Added architecture documentation for the v1.5.0 layered foundation.
+
+### Compatibility
+
+- No user-facing workflow changes.
+- Preserved ETL logic, graph calculations, PDF/image export behavior, filename standards, update checking, splash behavior and installer/build workflow.
+
 ## v1.4.3
 
 ### Startup UX

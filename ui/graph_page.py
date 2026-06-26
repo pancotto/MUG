@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
@@ -35,29 +34,12 @@ from PySide6.QtWidgets import (
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
-from core.graph_builder import (
-    create_tension_graph,
-    create_current_graph,
-    create_active_power_graph,
-    create_consumption_graph,
-    create_apparent_power_graph,
-    create_pf_graph,
-    create_tension_imbalance_graph,
-    create_current_imbalance_graph,
-    create_dht_voltage_graph,
-    create_dht_current_graph,
-    create_combined_vxi_graph,
-    create_combined_kwxkva_graph,
-)
+from config.constants import CUSTOM_DAILY_PDF_MAX_WORKERS, DEFAULT_PDF_GRAPHS
+from config.versions import format_app_version as _format_app_version
+from config.versions import get_app_version as _get_app_version
 from core.models import ProcessedData, format_numeric_value
 from core.pdf_exporter import (
-    build_custom_pdf_filename,
-    build_daily_pdf_filename,
-    ensure_unique_pdf_path,
-    export_figures_to_pdf,
     GRAPH_EXPORT_ORDER,
-    next_pdf_suffix_path,
-    reserve_unique_pdf_paths,
 )
 from core.time_filter import (
     DetectedDay,
@@ -88,10 +70,10 @@ from ui.input_validation import (
     set_decimal_number_validator,
     set_digits_only_validator,
 )
+from services.container import get_service_container
 
 
-APP_VERSION_FALLBACK = "1.4.3"
-CUSTOM_DAILY_PDF_MAX_WORKERS = 2
+APP_VERSION_FALLBACK = "1.5.0"
 
 
 def get_app_version() -> str:
@@ -102,46 +84,11 @@ def get_app_version() -> str:
     Em build PyInstaller --onedir, tenta ler VERSION ao lado do executável
     ou dentro da pasta _internal, quando incluído via --add-data.
     """
-    candidates: list[Path] = []
-
-    if getattr(sys, "frozen", False):
-        executable_dir = Path(sys.executable).resolve().parent
-        internal_dir = Path(getattr(sys, "_MEIPASS", executable_dir)).resolve()
-        candidates.extend([
-            executable_dir / "VERSION",
-            internal_dir / "VERSION",
-        ])
-    else:
-        candidates.append(Path(__file__).resolve().parents[1] / "VERSION")
-
-    for version_file in candidates:
-        try:
-            if version_file.exists():
-                version = version_file.read_text(encoding="utf-8").strip()
-                if version:
-                    return version
-        except Exception:
-            pass
-
-    return APP_VERSION_FALLBACK
+    return _get_app_version(APP_VERSION_FALLBACK)
 
 
 def format_app_version(version: str) -> str:
-    clean = str(version or "").strip()
-    if clean.lower().startswith("v"):
-        return f"v{clean[1:]}"
-    return f"v{clean}"
-
-
-DEFAULT_PDF_GRAPHS = {
-    "Tensão",
-    "Corrente",
-    "Potência Ativa",
-    "Potência Aparente",
-    "Fator de Potência",
-    "DHT Tensão",
-    "DHT Corrente",
-}
+    return _format_app_version(version)
 
 
 
@@ -417,12 +364,21 @@ class PdfExportWorker(QObject):
     error = Signal(str)
     canceled = Signal()
 
-    def __init__(self, processed, selected_graphs, output_dir, zoom_mode, pdf_filename=None):
+    def __init__(
+        self,
+        processed,
+        selected_graphs,
+        output_dir,
+        zoom_mode,
+        pdf_export_service,
+        pdf_filename=None,
+    ):
         super().__init__()
         self.processed = processed
         self.selected_graphs = selected_graphs
         self.output_dir = output_dir
         self.zoom_mode = zoom_mode
+        self.pdf_export_service = pdf_export_service
         self.pdf_filename = pdf_filename
         self._cancel_requested = False
 
@@ -436,7 +392,7 @@ class PdfExportWorker(QObject):
                 self.canceled.emit()
                 return
 
-            pdf_path = export_figures_to_pdf(
+            pdf_path = self.pdf_export_service.export_figures_to_pdf(
                 processed=self.processed,
                 selected_graphs=self.selected_graphs,
                 output_dir=self.output_dir,
@@ -456,11 +412,12 @@ class CustomPdfExportWorker(QObject):
     progress = Signal(int, int, str)
     finished = Signal(list, list, bool)
 
-    def __init__(self, export_tasks, selected_graphs, output_dir):
+    def __init__(self, export_tasks, selected_graphs, output_dir, pdf_export_service):
         super().__init__()
         self.export_tasks = tuple(export_tasks)
         self.selected_graphs = selected_graphs
         self.output_dir = Path(output_dir)
+        self.pdf_export_service = pdf_export_service
         self._cancel_requested = False
 
     def request_cancel(self):
@@ -468,7 +425,7 @@ class CustomPdfExportWorker(QObject):
 
     def _export_task(self, task):
         with tempfile.TemporaryDirectory(prefix="mug_pdf_export_") as temp_dir:
-            generated_path = Path(export_figures_to_pdf(
+            generated_path = Path(self.pdf_export_service.export_figures_to_pdf(
                 processed=task["processed"],
                 selected_graphs=self.selected_graphs,
                 output_dir=Path(temp_dir),
@@ -480,12 +437,12 @@ class CustomPdfExportWorker(QObject):
             target_path.parent.mkdir(parents=True, exist_ok=True)
 
             for _ in range(25):
-                safe_target = ensure_unique_pdf_path(target_path)
+                safe_target = self.pdf_export_service.ensure_unique_pdf_path(target_path)
                 try:
                     generated_path.replace(safe_target)
                     return str(safe_target)
                 except PermissionError:
-                    target_path = next_pdf_suffix_path(safe_target)
+                    target_path = self.pdf_export_service.next_pdf_suffix_path(safe_target)
 
             raise PermissionError(
                 f"Não foi possível gravar o PDF em um nome livre: {task['output_path']}"
@@ -2489,7 +2446,7 @@ class PdfExportTab(QWidget):
                     export_metadata,
                 )
 
-            pdf_filename = build_custom_pdf_filename(
+            pdf_filename = self.graph_page.services.pdf_export_service.build_custom_pdf_filename(
                 export_metadata.get("company", processed.company),
                 export_metadata.get("revision", processed.revision),
                 **self._filename_metadata(export_metadata),
@@ -2505,6 +2462,7 @@ class PdfExportTab(QWidget):
                 selected_graphs=selected_graphs,
                 output_dir=Path(output_dir),
                 zoom_mode=zoom_mode,
+                pdf_export_service=self.graph_page.services.pdf_export_service,
                 pdf_filename=pdf_filename,
             )
             self._pdf_worker.moveToThread(self._pdf_thread)
@@ -2582,7 +2540,7 @@ class PdfExportTab(QWidget):
             tasks: list[dict] = []
             export_timestamp = pd.Timestamp.now()
             filenames = [
-                build_daily_pdf_filename(
+                self.graph_page.services.pdf_export_service.build_daily_pdf_filename(
                     company,
                     revision,
                     day.date,
@@ -2591,7 +2549,10 @@ class PdfExportTab(QWidget):
                 )
                 for day in config["days"]
             ]
-            output_paths = reserve_unique_pdf_paths(output_dir, filenames)
+            output_paths = self.graph_page.services.pdf_export_service.reserve_unique_pdf_paths(
+                output_dir,
+                filenames,
+            )
             for day, filename, output_path in zip(config["days"], filenames, output_paths):
                 start = max(pd.Timestamp(day.start_datetime), pd.Timestamp(config["start"]))
                 end = min(pd.Timestamp(day.end_datetime), pd.Timestamp(config["end"]))
@@ -2619,12 +2580,15 @@ class PdfExportTab(QWidget):
         else:
             dataframe = self._dataframe_for_days(config["days"])
 
-        filename = build_custom_pdf_filename(
+        filename = self.graph_page.services.pdf_export_service.build_custom_pdf_filename(
             company,
             revision,
             **filename_metadata,
         )
-        output_path = reserve_unique_pdf_paths(output_dir, [filename])[0]
+        output_path = self.graph_page.services.pdf_export_service.reserve_unique_pdf_paths(
+            output_dir,
+            [filename],
+        )[0]
 
         return [{
             "label": "Medição personalizada",
@@ -2716,6 +2680,7 @@ class PdfExportTab(QWidget):
             export_tasks=tasks,
             selected_graphs=config["graphs"],
             output_dir=config["output_dir"],
+            pdf_export_service=self.graph_page.services.pdf_export_service,
         )
         self._daily_pdf_worker.moveToThread(self._daily_pdf_thread)
 
@@ -2812,9 +2777,10 @@ class PdfExportTab(QWidget):
         self._daily_pdf_worker = None
 
 class GraphPage(QWidget):
-    def __init__(self, main_window):
+    def __init__(self, main_window, service_container=None):
         super().__init__()
         self.main_window = main_window
+        self.services = service_container or get_service_container()
 
         self.original_processed: ProcessedData | None = None
         self.original_dataframe: pd.DataFrame | None = None
@@ -3020,6 +2986,7 @@ class GraphPage(QWidget):
         dialog = AboutDialog(
             self,
             app_version=format_app_version(get_app_version()),
+            update_service=self.services.update_service,
             available_update=getattr(
                 self.main_window,
                 "available_update",
@@ -3148,32 +3115,21 @@ class GraphPage(QWidget):
             equipment_value=processed.equipment_value,
         )
 
-        graph_builders = {
-            "Tensão": create_tension_graph,
-            "Corrente": create_current_graph,
-            "Potência Ativa": create_active_power_graph,
-            "Potência Aparente": create_apparent_power_graph,
-            "Fator de Potência": create_pf_graph,
-            "Deseq. Tensão": create_tension_imbalance_graph,
-            "Deseq. Corrente": create_current_imbalance_graph,
-            "Consumo": create_consumption_graph,
-            "DHT Tensão": create_dht_voltage_graph,
-            "DHT Corrente": create_dht_current_graph,
-            "Tensão x Corrente": create_combined_vxi_graph,
-            "kW x kVA": create_combined_kwxkva_graph,
-        }
-
         figures = {}
         base_key = self._graph_cache_base_key(processed, df, x_min, x_max, zoom_mode)
 
-        for name, builder in graph_builders.items():
+        for name in self.services.graph_service.supported_graphs():
             cache_key = (name, *base_key)
             cached = self._graph_cache.get(cache_key)
             if cached is not None:
                 figures[name] = go.Figure(cached)
                 continue
 
-            fig = builder(filtered_processed, show_logo=False)
+            fig = self.services.graph_service.build_figure(
+                name,
+                filtered_processed,
+                show_logo=False,
+            )
             fig = self._apply_interface_visual_standard(
                 graph_name=name,
                 fig=fig,

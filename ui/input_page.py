@@ -1,16 +1,17 @@
 from pathlib import Path
-import sys
 
-from core.models import InputData
-from core.excel_reader import process_input_data
+from config.versions import format_app_version as _format_app_version
+from config.versions import get_app_version as _get_app_version
+from domain.input_rules import (
+    AnalysisInputValues,
+    build_input_data,
+    normalize_analysis_values,
+    validate_analysis_values,
+)
+from services.container import get_service_container
 
-try:
-    from core.paths import get_app_assets
-except Exception:
-    get_app_assets = None
 
-
-APP_VERSION_FALLBACK = "1.4.3"
+APP_VERSION_FALLBACK = "1.5.0"
 
 
 def get_app_version() -> str:
@@ -21,35 +22,11 @@ def get_app_version() -> str:
     Em build PyInstaller --onedir, tenta ler VERSION ao lado do executável
     ou dentro da pasta _internal, quando incluído via --add-data.
     """
-    candidates: list[Path] = []
-
-    if getattr(sys, "frozen", False):
-        executable_dir = Path(sys.executable).resolve().parent
-        internal_dir = Path(getattr(sys, "_MEIPASS", executable_dir)).resolve()
-        candidates.extend([
-            executable_dir / "VERSION",
-            internal_dir / "VERSION",
-        ])
-    else:
-        candidates.append(Path(__file__).resolve().parents[1] / "VERSION")
-
-    for version_file in candidates:
-        try:
-            if version_file.exists():
-                version = version_file.read_text(encoding="utf-8").strip()
-                if version:
-                    return version
-        except Exception:
-            pass
-
-    return APP_VERSION_FALLBACK
+    return _get_app_version(APP_VERSION_FALLBACK)
 
 
 def format_app_version(version: str) -> str:
-    clean = str(version or "").strip()
-    if clean.lower().startswith("v"):
-        return f"v{clean[1:]}"
-    return f"v{clean}"
+    return _format_app_version(version)
 
 
 from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
@@ -97,25 +74,27 @@ class DataProcessingWorker(QObject):
     finished = Signal(object)
     error = Signal(str)
 
-    def __init__(self, input_data: InputData):
+    def __init__(self, input_data, data_processing_service):
         super().__init__()
         self.input_data = input_data
+        self.data_processing_service = data_processing_service
 
     @Slot()
     def run(self):
         try:
-            processed = process_input_data(self.input_data)
+            processed = self.data_processing_service.process(self.input_data)
             self.finished.emit(processed)
         except Exception as exc:
             self.error.emit(str(exc))
 
 
 class InputPage(QWidget):
-    def __init__(self, main_window):
+    def __init__(self, main_window, service_container=None):
         super().__init__()
         self.main_window = main_window
+        self.services = service_container or get_service_container()
         self.selected_excel_path: Path | None = None
-        self.assets = get_app_assets() if get_app_assets else None
+        self.assets = self.services.assets
         self._processing_thread: QThread | None = None
         self._processing_worker: DataProcessingWorker | None = None
         self._build_ui()
@@ -705,6 +684,7 @@ class InputPage(QWidget):
         dialog = AboutDialog(
             self,
             app_version=format_app_version(get_app_version()),
+            update_service=self.services.update_service,
             available_update=getattr(
                 self.main_window,
                 "available_update",
@@ -728,57 +708,29 @@ class InputPage(QWidget):
             self.file_path_label.setText(str(self.selected_excel_path))
 
     def normalize_inputs(self):
-        self.company_input["input"].setText(self.company_input["input"].text().strip().upper())
-        self.city_input["input"].setText(self.city_input["input"].text().strip().upper())
-        self.equipment_reference_input["input"].setText(
-            self.equipment_reference_input["input"].text().strip().upper()
-        )
-        self.local_input["input"].setText(self.local_input["input"].text().strip().upper())
-        self.revision_input["input"].setText(self.revision_input["input"].text().strip())
+        values = normalize_analysis_values(self._analysis_input_values())
+        self.company_input["input"].setText(values.company)
+        self.city_input["input"].setText(values.city)
+        self.equipment_reference_input["input"].setText(values.equipment_reference)
+        self.local_input["input"].setText(values.local)
+        self.revision_input["input"].setText(values.revision)
+        self.equipment_value_input["input"].setText(values.equipment_value)
 
-        equipment_value_text = self.equipment_value_input["input"].text().strip().replace(",", ".")
-        self.equipment_value_input["input"].setText(equipment_value_text)
+    def _analysis_input_values(self) -> AnalysisInputValues:
+        return AnalysisInputValues(
+            company=self.company_input["input"].text(),
+            city=self.city_input["input"].text(),
+            equipment_type=self.get_equipment_type(),
+            equipment_reference=self.equipment_reference_input["input"].text(),
+            equipment_value=self.equipment_value_input["input"].text(),
+            local=self.local_input["input"].text(),
+            revision=self.revision_input["input"].text(),
+            selected_path=self.selected_excel_path,
+        )
 
     def validate_form(self) -> tuple[bool, str]:
         self.normalize_inputs()
-
-        company = self.company_input["input"].text()
-        city = self.city_input["input"].text()
-        equipment_type = self.get_equipment_type()
-        equipment_reference = self.equipment_reference_input["input"].text()
-        equipment_value = self.equipment_value_input["input"].text()
-        local = self.local_input["input"].text()
-        revision = self.revision_input["input"].text()
-
-        if not company:
-            return False, "Informe a EMPRESA."
-        if not city:
-            return False, "Informe a CIDADE/ES."
-        if not equipment_reference:
-            return False, "Informe a REFERÊNCIA / TAG do equipamento."
-        if not equipment_value:
-            return False, "Informe a POTÊNCIA do transformador." if equipment_type == "TRAFO" else "Informe a CORRENTE do disjuntor."
-        if not local:
-            return False, "Informe o LOCAL."
-        if not revision:
-            return False, "Informe a REVISÃO."
-        if self.selected_excel_path is None:
-            return False, "Selecione o arquivo de dados."
-        if self.selected_excel_path.suffix.lower() not in [".xlsx", ".txt"]:
-            return False, "O arquivo selecionado deve ser .xlsx ou .txt."
-
-        try:
-            numeric_equipment_value = float(equipment_value)
-        except ValueError:
-            return False, "O campo POTÊNCIA deve ser numérico." if equipment_type == "TRAFO" else "O campo CORRENTE deve ser numérico."
-
-        if numeric_equipment_value <= 0:
-            return False, "A POTÊNCIA deve ser maior que zero." if equipment_type == "TRAFO" else "A CORRENTE deve ser maior que zero."
-
-        if not revision.isdigit():
-            return False, "O campo REVISÃO deve conter apenas números."
-
-        return True, ""
+        return validate_analysis_values(self._analysis_input_values())
 
     def set_processing_state(self, processing: bool):
         self.generate_button.setDisabled(processing)
@@ -814,21 +766,15 @@ class InputPage(QWidget):
             QMessageBox.warning(self, "Validação", message)
             return
 
-        input_data = InputData(
-            company=self.company_input["input"].text(),
-            city=self.city_input["input"].text(),
-            equipment_type=self.get_equipment_type(),
-            equipment_reference=self.equipment_reference_input["input"].text(),
-            equipment_value=float(self.equipment_value_input["input"].text()),
-            local=self.local_input["input"].text(),
-            revision=self.revision_input["input"].text(),
-            excel_path=self.selected_excel_path,
-        )
+        input_data = build_input_data(self._analysis_input_values())
 
         self.set_processing_state(True)
 
         self._processing_thread = QThread()
-        self._processing_worker = DataProcessingWorker(input_data)
+        self._processing_worker = DataProcessingWorker(
+            input_data,
+            self.services.data_processing_service,
+        )
         self._processing_worker.moveToThread(self._processing_thread)
 
         self._processing_thread.started.connect(self._processing_worker.run)
@@ -848,6 +794,7 @@ class InputPage(QWidget):
             self.main_window.set_processed_data(processed)
             self.main_window.show_graph_page()
         except Exception as exc:
+            self.services.error_service.log_exception(exc, "Graph page rendering failed")
             QMessageBox.critical(
                 self,
                 "Erro",
@@ -858,6 +805,10 @@ class InputPage(QWidget):
 
     def _on_processing_error(self, error_message: str):
         self.set_processing_state(False)
+        self.services.error_service.log_exception(
+            RuntimeError(error_message),
+            "Data processing failed",
+        )
         QMessageBox.critical(
             self,
             "Erro",

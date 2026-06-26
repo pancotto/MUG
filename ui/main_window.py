@@ -3,27 +3,28 @@ import webbrowser
 
 from PySide6.QtWidgets import QMainWindow, QStackedWidget, QMessageBox
 
+from config.application import APP_DISPLAY_NAME
+from config.constants import UPDATE_CHECK_STARTUP_DELAY_MS
+from config.versions import format_app_version, get_app_version
+from services.container import get_service_container
 from ui.input_page import InputPage
-from ui.graph_page import GraphPage, format_app_version, get_app_version
-from core.update_checker import UpdateChecker
+from ui.graph_page import GraphPage
 from ui.about_dialog import AboutDialog
-
-
-UPDATE_CHECK_STARTUP_DELAY_MS = 100
 
 
 class UpdateCheckWorker(QObject):
     finished = Signal(object)
     error = Signal(str)
 
-    def __init__(self, current_version: str):
+    def __init__(self, current_version: str, update_service=None):
         super().__init__()
         self.current_version = current_version
+        self.update_service = update_service or get_service_container().update_service
 
     @Slot()
     def run(self):
         try:
-            self.finished.emit(UpdateChecker.is_update_available(self.current_version))
+            self.finished.emit(self.update_service.is_update_available(self.current_version))
         except Exception as exc:
             self.error.emit(str(exc))
             self.finished.emit(None)
@@ -34,12 +35,13 @@ class MainWindow(QMainWindow):
     Janela principal da aplicação desktop.
     """
 
-    def __init__(self):
+    def __init__(self, service_container=None):
         super().__init__()
 
+        self.services = service_container or get_service_container()
         self.processed_data = None
 
-        self.setWindowTitle("ANALISADOR GRÁFICO DE GRANDEZAS ELÉTRICAS")
+        self.setWindowTitle(APP_DISPLAY_NAME)
         self.resize(1400, 900)
         self.setMinimumSize(1180, 760)
         self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
@@ -47,8 +49,8 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
-        self.input_page = InputPage(self)
-        self.graph_page = GraphPage(self)
+        self.input_page = InputPage(self, service_container=self.services)
+        self.graph_page = GraphPage(self, service_container=self.services)
 
         self.stack.addWidget(self.input_page)
         self.stack.addWidget(self.graph_page)
@@ -64,6 +66,7 @@ class MainWindow(QMainWindow):
     def set_processed_data(self, processed):
         self.processed_data = processed
         self.graph_page.load_processed_data(processed)
+        self.services.event_bus.publish("analysis.processed", processed=processed)
 
     def start_new_analysis(self):
 
@@ -142,6 +145,7 @@ class MainWindow(QMainWindow):
             return
 
         self.processed_data = None
+        self.services.event_bus.publish("analysis.reset")
 
         self.graph_page.clear_loaded_data()
 
@@ -172,7 +176,10 @@ class MainWindow(QMainWindow):
             current_version = get_app_version()
 
             self._update_thread = QThread(self)
-            self._update_worker = UpdateCheckWorker(current_version)
+            self._update_worker = UpdateCheckWorker(
+                current_version,
+                self.services.update_service,
+            )
             self._update_worker.moveToThread(self._update_thread)
 
             self._update_thread.started.connect(self._update_worker.run)
@@ -187,7 +194,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
 
-            print(f"[UPDATE CHECK ERROR] {e}")
+            self.services.error_service.log_exception(e, "Update check startup failed")
 
     @Slot(object)
     def _handle_update_check_finished(self, update):
@@ -277,7 +284,10 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _handle_update_check_error(self, message: str):
-        print(f"[UPDATE CHECK ERROR] {message}")
+        self.services.error_service.log_exception(
+            RuntimeError(message),
+            "Update check failed",
+        )
 
     @Slot()
     def _clear_update_thread_refs(self):
@@ -287,8 +297,8 @@ class MainWindow(QMainWindow):
     def open_update_download(self, update: dict):
         direct_url = str(update.get("browser_download_url") or "").strip()
         if not direct_url:
-            direct_url = UpdateChecker.get_direct_download_url(update)
-        release_url = UpdateChecker.get_release_page_url(update)
+            direct_url = self.services.update_service.get_direct_download_url(update)
+        release_url = self.services.update_service.get_release_page_url(update)
         target_url = direct_url or release_url
 
         if not target_url:
@@ -297,7 +307,10 @@ class MainWindow(QMainWindow):
                 "Atualização indisponível",
                 "Não foi possível localizar um link válido para download da atualização."
             )
-            print("[UPDATE CHECK ERROR] No valid update URL available.")
+            self.services.error_service.log_exception(
+                RuntimeError("No valid update URL available."),
+                "Update download failed",
+            )
             return
 
         try:
@@ -305,14 +318,14 @@ class MainWindow(QMainWindow):
             if opened:
                 return
         except Exception as e:
-            print(f"[UPDATE CHECK ERROR] Failed to open update URL: {e}")
+            self.services.error_service.log_exception(e, "Failed to open update URL")
 
         if direct_url and release_url and direct_url != release_url:
             try:
                 webbrowser.open(release_url)
                 return
             except Exception as e:
-                print(f"[UPDATE CHECK ERROR] Failed to open release page URL: {e}")
+                self.services.error_service.log_exception(e, "Failed to open release page URL")
 
         QMessageBox.warning(
             self,
