@@ -13,7 +13,7 @@ from domain.measurement_validation import MeasurementValidationResult
 from services.container import get_service_container
 
 
-APP_VERSION_FALLBACK = "1.6.0"
+APP_VERSION_FALLBACK = "1.6.1"
 
 
 def get_app_version() -> str:

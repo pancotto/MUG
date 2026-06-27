@@ -2,9 +2,9 @@
 
 Desktop application for graphical analysis of electrical quantities.
 
-Current version: **v1.6.0**
+Current version: **v1.6.1**
 
-v1.6.0 modernizes the measurement-selection workflow with an enterprise drop zone, lightweight file validation and clearer guided progression from file selection to metadata completion and graph generation.
+v1.6.1 is a maintenance and stability patch for the v1.6 input workflow and release metadata.
 
 ---
 

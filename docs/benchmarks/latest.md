@@ -1,9 +1,9 @@
-# MUG v1.6.0 Benchmark
+# MUG v1.6.1 Benchmark
 
 ## Environment
 
 - Created at: `2026-06-26T13:56:42`
-- Version: `v1.6.0`
+- Version: `v1.6.1`
 - Git commit: `40b51ccb95d8bd18e68a4e26d112a1f7d317eff6`
 - Python: `3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]`
 - Platform: `win32`

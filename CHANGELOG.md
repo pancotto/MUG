@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.6.1
+
+### Maintenance
+
+- Prepared a maintenance/stability patch with consistent release metadata and benchmark references.
+- No business logic, ETL, graph calculation, export or workflow changes.
+
 ## v1.6.0
 
 ### UX Modernization
