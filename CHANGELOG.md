@@ -5,7 +5,23 @@
 ### Maintenance
 
 - Prepared a maintenance/stability patch with consistent release metadata and benchmark references.
-- No business logic, ETL, graph calculation, export or workflow changes.
+- Added a friendly startup failure dialog and clean startup failure exit path so packaged runtime errors do not expose raw tracebacks.
+- Prevented navigation to the graph page when graph loading fails after ETL completion, preserving the selected measurement and avoiding partial UI state.
+- Standardized user-facing error messages for processing, graph rendering, filtering, zoom synchronization and export preparation while preserving technical logs.
+- Added a safer active-interval fallback when measurement bounds cannot be displayed.
+- Improved PDF export cancellation feedback to clarify that cancellation happens after the current PDF operation completes.
+- Improved unsupported drag/drop feedback for non-`.txt` and non-`.xlsx` files.
+- Added per-session dismissal for ignored update prompts so the same version is not shown repeatedly during one app session.
+- Added session-scoped cleanup for temporary graph HTML files.
+- Standardized progress/status wording across processing, graph generation, PDF export and cancellation.
+
+### Tests
+
+- Expanded automated coverage for the v1.6.1 robustness, UX maintenance and strict release-validation changes.
+
+### Compatibility
+
+- Preserved ETL logic, electrical calculations, graph formulas, PDF generation algorithms, filename standards and report scaffolding.
 
 ## v1.6.0
 

@@ -34,8 +34,9 @@ def sha256_file(path: Path) -> str:
 
 
 class ReleaseValidator:
-    def __init__(self, target_version: str):
+    def __init__(self, target_version: str, require_installer: bool = False):
         self.target_with_v, self.target_no_v = normalize_version(target_version)
+        self.require_installer = require_installer
         self.failures: list[str] = []
         self.infos: list[str] = []
 
@@ -161,9 +162,22 @@ class ReleaseValidator:
 
         if expected_path.exists():
             self.info(f"{expected_name} exists")
+            self.info(f"{expected_name} size: {expected_path.stat().st_size} bytes")
             self.info(f"SHA256 {expected_name}: {sha256_file(expected_path)}")
         else:
-            self.info(f"{expected_name} does not exist yet")
+            message = f"{expected_name} does not exist yet"
+            if self.require_installer:
+                installer_dir = ROOT / "installer"
+                existing_installers = sorted(
+                    path.name
+                    for path in installer_dir.glob("MUG_Setup_v*.exe")
+                    if path.is_file()
+                ) if installer_dir.exists() else []
+                if existing_installers:
+                    message += "; found installer artifacts: " + ", ".join(existing_installers)
+                self.fail(message)
+            else:
+                self.info(message)
 
     def validate_benchmark_latest(self) -> None:
         latest_md = ROOT / "docs" / "benchmarks" / "latest.md"
@@ -239,9 +253,17 @@ class ReleaseValidator:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate MUG release metadata.")
     parser.add_argument("--version", required=True, help="Target release version, e.g. v1.4.0")
+    parser.add_argument(
+        "--require-installer",
+        action="store_true",
+        help="Fail unless the expected installer artifact exists.",
+    )
     args = parser.parse_args(argv)
 
-    validator = ReleaseValidator(args.version)
+    validator = ReleaseValidator(
+        args.version,
+        require_installer=args.require_installer,
+    )
     return validator.run()
 
 

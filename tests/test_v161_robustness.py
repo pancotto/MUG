@@ -8,8 +8,9 @@ def test_startup_failure_shows_friendly_dialog_without_traceback():
     source = (ROOT / "app.py").read_text(encoding="utf-8")
 
     assert "QMessageBox.critical" in source
-    assert '"MUG could not start"' in source
+    assert '"MUG não pôde iniciar"' in source
     assert "_startup_failure_message(services.error_service)" in source
+    assert 'raise startup_state["error"]' not in source
     assert "traceback" not in source.lower()
     assert "services.error_service.log_exception(exc, \"Main window startup failed\")" in source
 

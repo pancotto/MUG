@@ -23,9 +23,9 @@ def _startup_failure_message(error_service=None) -> str:
     if error_service is not None:
         return error_service.friendly_startup_message()
     return (
-        "The application encountered an unexpected error during startup.\n\n"
-        "The error has been recorded in the log.\n\n"
-        "If the problem persists, contact support and provide the log file."
+        "O MUG encontrou um erro inesperado durante a inicialização.\n\n"
+        "O erro foi registrado no log.\n\n"
+        "Se o problema persistir, entre em contato com o suporte e envie o arquivo de log."
     )
 
 
@@ -66,7 +66,7 @@ def main():
             if QApplication.instance() is not None:
                 QMessageBox.critical(
                     None,
-                    "MUG could not start",
+                    "MUG não pôde iniciar",
                     _startup_failure_message(services.error_service),
                 )
             app.exit(1)
@@ -74,8 +74,6 @@ def main():
     QTimer.singleShot(STARTUP_MAIN_WINDOW_DELAY_MS, create_main_window)
 
     exit_code = app.exec()
-    if startup_state["error"] is not None:
-        raise startup_state["error"]
     sys.exit(exit_code)
 
 

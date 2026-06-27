@@ -21,12 +21,12 @@ class ErrorService:
 
     def friendly_startup_message(self, log_path: str | None = None) -> str:
         message = (
-            "The application encountered an unexpected error during startup.\n\n"
-            "The error has been recorded in the log.\n\n"
-            "If the problem persists, contact support and provide the log file."
+            "O MUG encontrou um erro inesperado durante a inicialização.\n\n"
+            "O erro foi registrado no log.\n\n"
+            "Se o problema persistir, entre em contato com o suporte e envie o arquivo de log."
         )
         if log_path:
-            message += f"\n\nLog file:\n{log_path}"
+            message += f"\n\nArquivo de log:\n{log_path}"
         return message
 
     def friendly_processing_message(self) -> str:
