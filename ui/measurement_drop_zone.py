@@ -343,7 +343,14 @@ class MeasurementDropZone(QFrame):
         self._drag_active = False
         for url in event.mimeData().urls():
             if url.isLocalFile():
-                self.file_dropped.emit(Path(url.toLocalFile()))
+                path = Path(url.toLocalFile())
+                if path.suffix.lower() not in {".txt", ".xlsx"}:
+                    self._drag_supported = False
+                    self._show_drag_feedback()
+                    event.ignore()
+                    self.update()
+                    return
+                self.file_dropped.emit(path)
                 event.acceptProposedAction()
                 self.update()
                 return
@@ -373,7 +380,9 @@ class MeasurementDropZone(QFrame):
             self.secondary_label.setText("")
         else:
             self.primary_label.setText("Formato não suportado")
-            self.secondary_label.setText("Use arquivos .txt ou .xlsx.")
+            self.secondary_label.setText(
+                "Formato não suportado. Selecione um arquivo .xlsx ou .txt compatível."
+            )
 
     def _restore_state_display(self) -> None:
         if self._state == "validating":

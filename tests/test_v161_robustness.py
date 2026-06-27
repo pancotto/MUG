@@ -49,3 +49,39 @@ def test_error_service_provides_friendly_recovery_messages():
     assert "datas e horários" in service.friendly_filter_message()
     assert "zoom" in service.friendly_zoom_message()
     assert "log" in service.friendly_export_message()
+
+
+def test_pdf_cancellation_feedback_is_best_effort_and_clear():
+    source = (ROOT / "ui" / "graph_page.py").read_text(encoding="utf-8")
+
+    assert "Cancelando após concluir o PDF atual..." in source
+    assert "request_cancel()" in source
+    assert "self.cancel_standard_button.setEnabled(False)" in source
+    assert "self.cancel_daily_button.setEnabled(False)" in source
+
+
+def test_update_prompt_dismissal_is_session_scoped():
+    source = (ROOT / "ui" / "main_window.py").read_text(encoding="utf-8")
+
+    assert "self._dismissed_update_versions: set[str] = set()" in source
+    assert "update_version in self._dismissed_update_versions" in source
+    assert "self._dismissed_update_versions.add(update_version)" in source
+    assert "self.available_update = None" in source
+
+
+def test_graph_html_uses_session_temp_directory_with_cleanup():
+    source = (ROOT / "ui" / "graph_page.py").read_text(encoding="utf-8")
+
+    assert 'tempfile.mkdtemp(prefix="mug_graph_html_")' in source
+    assert "self._graph_html_dir /" in source
+    assert "cleanup_temporary_graph_html" in source
+    assert "shutil.rmtree(temp_dir, ignore_errors=True)" in source
+    assert "Path(tempfile.gettempdir()) /" not in source
+
+
+def test_unsupported_drop_feedback_is_explicit_and_does_not_emit_file():
+    source = (ROOT / "ui" / "measurement_drop_zone.py").read_text(encoding="utf-8")
+
+    assert "Formato não suportado. Selecione um arquivo .xlsx ou .txt compatível." in source
+    assert "event.ignore()" in source
+    assert "self.file_dropped.emit(path)" in source

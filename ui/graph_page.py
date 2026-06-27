@@ -1,5 +1,6 @@
 from pathlib import Path
 import tempfile
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
@@ -2015,7 +2016,7 @@ class PdfExportTab(QWidget):
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)
-        self.progress_bar.setFormat("Gerando PDF... aguarde")
+        self.progress_bar.setFormat("Exportando PDF...")
         self.progress_bar.setVisible(False)
 
         self.select_default_button = QPushButton("SELEÇÃO PADRÃO")
@@ -2281,7 +2282,7 @@ class PdfExportTab(QWidget):
 
         if exporting:
             self.export_button.setText("EXPORTANDO MEDIÇÃO ATUAL...")
-            self.status_label.setText("Processando gráficos e montando o arquivo PDF. Aguarde...")
+            self.status_label.setText("Exportando PDF da medição atual...")
         else:
             self.export_button.setText("EXPORTAR MEDIÇÃO ATUAL")
             self.export_daily_button.setText("EXPORTAR MEDIÇÃO PERSONALIZADA")
@@ -2727,7 +2728,7 @@ class PdfExportTab(QWidget):
         self.export_daily_button.setText("EXPORTANDO MEDIÇÃO...")
         self.cancel_daily_button.setVisible(True)
         self.cancel_daily_button.setEnabled(True)
-        self.status_label.setText("Preparando exportação personalizada. Aguarde...")
+        self.status_label.setText("Exportando PDF personalizado...")
 
         self._daily_pdf_thread = QThread()
         self._daily_pdf_worker = CustomPdfExportWorker(
@@ -2757,7 +2758,7 @@ class PdfExportTab(QWidget):
 
         self.cancel_standard_button.setEnabled(False)
         self.cancel_daily_button.setEnabled(False)
-        self.status_label.setText("Cancelando exportação...")
+        self.status_label.setText("Cancelando após concluir o PDF atual...")
 
     def _on_pdf_finished(self, pdf_path: str):
         self.set_exporting_state(False)
@@ -2847,9 +2848,14 @@ class GraphPage(QWidget):
         self.syncing_zoom = False
         self.current_x_min = None
         self.current_x_max = None
+        self._graph_html_dir = Path(tempfile.mkdtemp(prefix="mug_graph_html_"))
 
         self.plot_bridge = PlotBridge()
         self.plot_bridge.zoomChanged.connect(self._on_zoom_changed)
+        app = QApplication.instance()
+        if app is not None:
+            app.aboutToQuit.connect(self.cleanup_temporary_graph_html)
+        self.destroyed.connect(lambda *_: self.cleanup_temporary_graph_html())
 
         self._build_ui()
 
@@ -3106,7 +3112,10 @@ class GraphPage(QWidget):
     def _render_webview_figure(self, tab_name: str, fig: go.Figure):
         html = self._build_html_with_zoom_sync(fig, tab_name)
 
-        temp_file = Path(tempfile.gettempdir()) / (
+        if self._graph_html_dir is None:
+            self._graph_html_dir = Path(tempfile.mkdtemp(prefix="mug_graph_html_"))
+        self._graph_html_dir.mkdir(parents=True, exist_ok=True)
+        temp_file = self._graph_html_dir / (
             f"plot_{tab_name.replace(' ', '_').replace('.', '').replace('/', '_')}.html"
         )
 
@@ -3120,6 +3129,19 @@ class GraphPage(QWidget):
         webview.page().setWebChannel(channel)
 
         webview.load(QUrl.fromLocalFile(str(temp_file)))
+
+    def cleanup_temporary_graph_html(self) -> None:
+        if self._graph_html_dir is None:
+            return
+        temp_dir = self._graph_html_dir
+        self._graph_html_dir = None
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception as exc:
+            self.services.error_service.log_exception(
+                exc,
+                "Failed to clean temporary graph HTML files",
+            )
 
     def _apply_interface_visual_standard(
         self,

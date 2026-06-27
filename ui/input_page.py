@@ -429,7 +429,7 @@ class InputPage(QWidget):
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)
-        self.progress_bar.setFormat("Processando dados e gerando gráficos... aguarde")
+        self.progress_bar.setFormat("Processando medição e gerando gráficos...")
         self.progress_bar.setVisible(False)
         self.progress_bar.setStyleSheet("""
             QProgressBar {
@@ -1037,7 +1037,7 @@ class InputPage(QWidget):
 
         if processing:
             self.generate_button.setText("GERANDO GRÁFICOS...")
-            self.status_label.setText("Processando dados e montando os gráficos. Aguarde...")
+            self.status_label.setText("Processando medição e preparando gráficos...")
         else:
             self.generate_button.setText("GERAR GRÁFICOS")
             self.status_label.setText("")
@@ -1074,7 +1074,7 @@ class InputPage(QWidget):
     def _on_processing_finished(self, processed):
         try:
             # Mantém a barra visível enquanto a página de gráficos é renderizada.
-            self.status_label.setText("Renderizando gráficos na interface. Aguarde...")
+            self.status_label.setText("Gerando gráficos na interface...")
             if not self.main_window.set_processed_data(processed):
                 QMessageBox.critical(
                     self,

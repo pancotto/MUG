@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         self.show_input_page()
 
         self.available_update = None
+        self._dismissed_update_versions: set[str] = set()
         self._update_thread: QThread | None = None
         self._update_worker: UpdateCheckWorker | None = None
 
@@ -207,11 +208,14 @@ class MainWindow(QMainWindow):
             return
 
         current_version = get_app_version()
+        update_version = str(update.get("version") or "").strip()
+        if update_version in self._dismissed_update_versions:
+            return
 
         message = (
             f"Nova versão disponível!\n\n"
             f"Versão atual: {format_app_version(current_version)}\n"
-            f"Nova versão: {format_app_version(update['version'])}\n\n"
+            f"Nova versão: {format_app_version(update_version)}\n\n"
             f"Deseja baixar o instalador da nova versão?"
         )
 
@@ -284,6 +288,8 @@ class MainWindow(QMainWindow):
         if msg_box.clickedButton() == yes_button:
 
             self.open_update_download(update)
+        elif update_version:
+            self._dismissed_update_versions.add(update_version)
 
     @Slot(str)
     def _handle_update_check_error(self, message: str):
