@@ -1092,10 +1092,21 @@ class TimeSelectionTab(QWidget):
 
             self.graph_page.apply_time_filter(selected_filter)
         except Exception as exc:
+            if isinstance(exc, ValueError):
+                message = self.graph_page.services.error_service.format_user_message(
+                    "Não foi possível aplicar o intervalo selecionado.",
+                    exc,
+                )
+            else:
+                self.graph_page.services.error_service.log_exception(
+                    exc,
+                    "Failed to apply selected time interval",
+                )
+                message = self.graph_page.services.error_service.friendly_filter_message()
             QMessageBox.warning(
                 self,
                 "Seleção inválida",
-                f"Não foi possível aplicar o intervalo selecionado:\n\n{exc}"
+                message,
             )
 
     def clear_selection(self):
@@ -1140,14 +1151,26 @@ class TimeSelectionTab(QWidget):
 
     def update_active_interval(self, time_filter: TimeFilter | None):
         if time_filter is None or time_filter.is_full_measurement:
+            start = None
+            end = None
             if self.graph_page.original_dataframe is not None:
                 try:
                     start, end = get_measurement_bounds(
                         self.graph_page.original_dataframe
                     )
                     self._set_datetime_controls(start, end)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    self.graph_page.services.error_service.log_exception(
+                        exc,
+                        "Failed to update active full-measurement interval",
+                    )
+            if start is None or end is None:
+                self.active_interval_label.setText(
+                    "Intervalo Ativo\n"
+                    "Medição Completa\n"
+                    "Período indisponível"
+                )
+                return
             self.active_interval_label.setText(
                 "Intervalo Ativo\n"
                 "Medição Completa\n"
@@ -1180,6 +1203,7 @@ class CustomMeasurementExportPanel(QWidget):
         selected_graphs: list[str] | None = None,
     ):
         super().__init__(parent)
+        self.graph_page = parent.graph_page
         self.original_processed = original_processed
         self.detected_days = tuple(detected_days)
         self.initial_selected_graphs = set(selected_graphs or [])
@@ -1660,7 +1684,15 @@ class CustomMeasurementExportPanel(QWidget):
         try:
             start, end = self._interval_bounds()
         except Exception as exc:
-            QMessageBox.warning(self, "Validação", str(exc))
+            if isinstance(exc, ValueError):
+                message = str(exc)
+            else:
+                message = self.graph_page.services.error_service.friendly_filter_message()
+                self.graph_page.services.error_service.log_exception(
+                    exc,
+                    "Failed to resolve custom export interval",
+                )
+            QMessageBox.warning(self, "Validação", message)
             return None
 
         days = self._export_days_for_interval(start, end)
@@ -2379,10 +2411,17 @@ class PdfExportTab(QWidget):
                 test_file.write_text("ok", encoding="utf-8")
                 test_file.unlink(missing_ok=True)
             except Exception as exc:
+                self.graph_page.services.error_service.log_exception(
+                    exc,
+                    "Current measurement export output directory preflight failed",
+                )
                 QMessageBox.warning(
                     self,
-                "Exportar medição atual",
-                f"A pasta de destino não está disponível para gravação:\n\n{exc}"
+                    "Exportar medição atual",
+                    (
+                        "A pasta de destino não está disponível para gravação.\n\n"
+                        "Selecione outra pasta e tente novamente."
+                    ),
                 )
                 return False
 
@@ -2390,10 +2429,17 @@ class PdfExportTab(QWidget):
             with tempfile.TemporaryDirectory(prefix="mug_pdf_preflight_"):
                 pass
         except Exception as exc:
+            self.graph_page.services.error_service.log_exception(
+                exc,
+                "Current measurement export temporary directory preflight failed",
+            )
             QMessageBox.warning(
                 self,
                 "Exportar medição atual",
-                f"Não foi possível usar a pasta temporária do sistema:\n\n{exc}"
+                (
+                    "Não foi possível usar a pasta temporária do sistema.\n\n"
+                    "Reinicie o aplicativo e tente novamente."
+                ),
             )
             return False
 
@@ -2479,12 +2525,16 @@ class PdfExportTab(QWidget):
             self._pdf_thread.finished.connect(self._clear_pdf_thread_refs)
             self._pdf_thread.start()
 
-        except Exception as e:
+        except Exception as exc:
             self.set_exporting_state(False)
+            self.graph_page.services.error_service.log_exception(
+                exc,
+                "Failed to start current measurement PDF export",
+            )
             QMessageBox.critical(
                 self,
                 "ERRO NA EXPORTAÇÃO",
-                format_export_error_message(str(e))
+                self.graph_page.services.error_service.friendly_export_message(),
             )
 
     def _processed_for_dataframe(
@@ -2649,10 +2699,14 @@ class PdfExportTab(QWidget):
         try:
             tasks = self._build_custom_export_tasks(config)
         except Exception as exc:
+            self.graph_page.services.error_service.log_exception(
+                exc,
+                "Failed to prepare custom PDF export",
+            )
             QMessageBox.warning(
                 self,
                 "Exportar medição personalizada",
-                f"Não foi possível preparar a exportação:\n\n{exc}"
+                self.graph_page.services.error_service.friendly_export_message(),
             )
             return
 
@@ -3240,6 +3294,16 @@ class GraphPage(QWidget):
             self._refresh_graphs_for_current_processed()
             self._update_filter_indicator()
             self.time_selection_tab.update_active_interval(self.current_time_filter)
+        except Exception as exc:
+            self.services.error_service.log_exception(
+                exc,
+                "Failed to apply graph time filter",
+            )
+            QMessageBox.critical(
+                self,
+                "Erro ao aplicar seleção",
+                self.services.error_service.friendly_filter_message(),
+            )
         finally:
             self.time_selection_tab.set_processing_state(False)
 
@@ -3304,11 +3368,15 @@ class GraphPage(QWidget):
             for tab_name, fig in figures.items():
                 self._render_webview_figure(tab_name, fig)
 
-        except Exception as e:
+        except Exception as exc:
+            self.services.error_service.log_exception(
+                exc,
+                "Failed to synchronize graph zoom",
+            )
             QMessageBox.critical(
                 self,
                 "Erro ao sincronizar zoom",
-                f"Ocorreu um erro ao sincronizar os gráficos:\n\n{str(e)}"
+                self.services.error_service.friendly_zoom_message(),
             )
         finally:
             self.syncing_zoom = False
@@ -3334,7 +3402,8 @@ class GraphPage(QWidget):
         self.pdf_export_tab.refresh_custom_export_context()
         self.tabs.setCurrentIndex(0)
 
-    def load_processed_data(self, processed: ProcessedData):
+    def load_processed_data(self, processed: ProcessedData) -> bool:
+        try:
             original_dataframe = processed.dataframe.copy(deep=True)
             self.original_dataframe = original_dataframe
             self.original_processed = ProcessedData(
@@ -3359,24 +3428,23 @@ class GraphPage(QWidget):
             self.current_x_min = None
             self.current_x_max = None
 
-            try:
-                self.time_selection_tab.load_processed_data(self.original_processed)
-                self.pdf_export_tab.refresh_custom_export_context()
-                self._update_filter_indicator()
+            self.time_selection_tab.load_processed_data(self.original_processed)
+            self.pdf_export_tab.refresh_custom_export_context()
+            self._update_filter_indicator()
 
-                figures, df = self._rebuild_figures_for_range(
-                    self.current_processed,
-                    None,
-                    None,
-                )
-                self.current_figures = figures
+            figures, df = self._rebuild_figures_for_range(
+                self.current_processed,
+                None,
+                None,
+            )
+            self.current_figures = figures
 
-                for tab_name, fig in figures.items():
-                    self._render_webview_figure(tab_name, fig)
+            for tab_name, fig in figures.items():
+                self._render_webview_figure(tab_name, fig)
 
-            except Exception as e:
-                QMessageBox.critical(
-                    self,
-                    "Erro ao renderizar gráficos",
-                    f"Ocorreu um erro ao montar os gráficos:\n\n{str(e)}"
-                )
+            return True
+
+        except Exception as exc:
+            self.services.error_service.log_exception(exc, "Graph page rendering failed")
+            self.clear_loaded_data()
+            return False

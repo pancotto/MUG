@@ -64,9 +64,12 @@ class MainWindow(QMainWindow):
         self.schedule_update_check()
 
     def set_processed_data(self, processed):
+        if not self.graph_page.load_processed_data(processed):
+            self.processed_data = None
+            return False
         self.processed_data = processed
-        self.graph_page.load_processed_data(processed)
         self.services.event_bus.publish("analysis.processed", processed=processed)
+        return True
 
     def start_new_analysis(self):
 

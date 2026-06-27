@@ -1075,14 +1075,20 @@ class InputPage(QWidget):
         try:
             # Mantém a barra visível enquanto a página de gráficos é renderizada.
             self.status_label.setText("Renderizando gráficos na interface. Aguarde...")
-            self.main_window.set_processed_data(processed)
+            if not self.main_window.set_processed_data(processed):
+                QMessageBox.critical(
+                    self,
+                    "Erro ao montar gráficos",
+                    self.services.error_service.friendly_graph_rendering_message(),
+                )
+                return
             self.main_window.show_graph_page()
         except Exception as exc:
             self.services.error_service.log_exception(exc, "Graph page rendering failed")
             QMessageBox.critical(
                 self,
-                "Erro",
-                f"Erro ao renderizar os gráficos:\n\n{str(exc)}"
+                "Erro ao montar gráficos",
+                self.services.error_service.friendly_graph_rendering_message(),
             )
         finally:
             self.set_processing_state(False)
@@ -1095,8 +1101,8 @@ class InputPage(QWidget):
         )
         QMessageBox.critical(
             self,
-            "Erro",
-            f"Erro ao processar os dados:\n\n{error_message}"
+            "Erro ao processar medição",
+            self.services.error_service.friendly_processing_message(),
         )
 
     def _clear_processing_thread_refs(self):
